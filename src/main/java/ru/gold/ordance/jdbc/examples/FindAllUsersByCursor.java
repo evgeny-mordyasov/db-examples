@@ -1,22 +1,23 @@
-package ru.gold.ordance.jdbc.examples.queries;
+package ru.gold.ordance.jdbc.examples;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import ru.gold.ordance.jdbc.examples.User;
+import ru.gold.ordance.jdbc.examples.db.RowMapper;
+import ru.gold.ordance.jdbc.examples.db.UserRowMapper;
+import ru.gold.ordance.jdbc.examples.db.model.User;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-import static ru.gold.ordance.jdbc.examples.DbProps.DB_PASSWORD;
-import static ru.gold.ordance.jdbc.examples.DbProps.DB_URL;
-import static ru.gold.ordance.jdbc.examples.DbProps.DB_USERNAME;
+import static ru.gold.ordance.jdbc.examples.db.DbProps.DB_PASSWORD;
+import static ru.gold.ordance.jdbc.examples.db.DbProps.DB_URL;
+import static ru.gold.ordance.jdbc.examples.db.DbProps.DB_USERNAME;
 
 public class FindAllUsersByCursor {
 
@@ -29,6 +30,8 @@ public class FindAllUsersByCursor {
             ORDER BY user_id
             LIMIT ?;
             """;
+
+    private static final RowMapper<User> MAPPER = new UserRowMapper();
 
     public static void main(String[] args) throws Exception {
         Integer lastUserId = null;
@@ -53,12 +56,7 @@ public class FindAllUsersByCursor {
                 try (ResultSet rs = ps.executeQuery()) {
                     List<User> users = new ArrayList<>();
                     while (rs.next()) {
-                        User user = new User();
-                        user.setUserId(rs.getInt("user_id"));
-                        user.setUsername(rs.getString("username"));
-                        user.setEmail(rs.getString("email"));
-                        user.setCreatedAt(rs.getObject("created_at", LocalDateTime.class));
-                        users.add(user);
+                        users.add(MAPPER.map(rs));
                     }
                     return users;
                 }
