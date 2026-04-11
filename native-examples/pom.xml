@@ -14,14 +14,16 @@
 
     <dependencies>
         <dependency>
+            <groupId>ru.gold.ordance</groupId>
+            <artifactId>common</artifactId>
+        </dependency>
+        <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
-            <version>1.5.32</version>
         </dependency>
         <dependency>
             <groupId>org.postgresql</groupId>
             <artifactId>postgresql</artifactId>
-            <version>42.7.5</version>
         </dependency>
     </dependencies>
 </project>

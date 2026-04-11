@@ -2,9 +2,9 @@ package ru.gold.ordance.jdbc.examples;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import ru.gold.ordance.jdbc.examples.db.RowMapper;
-import ru.gold.ordance.jdbc.examples.db.UserRowMapper;
-import ru.gold.ordance.jdbc.examples.db.model.User;
+import ru.gold.ordance.jdbc.examples.common.db.RowMapper;
+import ru.gold.ordance.jdbc.examples.common.db.UserRowMapper;
+import ru.gold.ordance.jdbc.examples.common.db.model.User;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -15,9 +15,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
-import static ru.gold.ordance.jdbc.examples.db.DbProps.DB_PASSWORD;
-import static ru.gold.ordance.jdbc.examples.db.DbProps.DB_URL;
-import static ru.gold.ordance.jdbc.examples.db.DbProps.DB_USERNAME;
+import static ru.gold.ordance.jdbc.examples.common.db.DbProps.DB_PASSWORD;
+import static ru.gold.ordance.jdbc.examples.common.db.DbProps.DB_URL;
+import static ru.gold.ordance.jdbc.examples.common.db.DbProps.DB_USERNAME;
 
 @SuppressWarnings("Duplicates")
 public class FindAllUsersByCursor {

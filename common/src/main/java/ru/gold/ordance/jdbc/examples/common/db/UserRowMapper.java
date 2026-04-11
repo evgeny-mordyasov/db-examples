@@ -1,12 +1,12 @@
-package ru.gold.ordance.jdbc.examples.db;
+package ru.gold.ordance.jdbc.examples.common.db;
 
-import ru.gold.ordance.jdbc.examples.db.model.User;
+import ru.gold.ordance.jdbc.examples.common.db.model.User;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.time.LocalDateTime;
 
-public class UserRowMapper implements RowMapper<User> {
+public class UserRowMapper implements ru.gold.ordance.jdbc.examples.common.db.RowMapper<User> {
 
     @Override
     public User map(ResultSet rs) throws SQLException {

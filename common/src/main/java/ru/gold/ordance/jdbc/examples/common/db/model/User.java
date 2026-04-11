@@ -1,4 +1,4 @@
-package ru.gold.ordance.jdbc.examples.db.model;
+package ru.gold.ordance.jdbc.examples.common.db.model;
 
 import java.time.LocalDateTime;
 

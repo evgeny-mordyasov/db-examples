@@ -1,4 +1,4 @@
-package ru.gold.ordance.jdbc.examples.db;
+package ru.gold.ordance.jdbc.examples.common.db;
 
 public final class DbProps {
 
