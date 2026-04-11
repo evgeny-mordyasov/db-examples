@@ -18,6 +18,7 @@ import static ru.gold.ordance.jdbc.examples.db.DbProps.DB_PASSWORD;
 import static ru.gold.ordance.jdbc.examples.db.DbProps.DB_URL;
 import static ru.gold.ordance.jdbc.examples.db.DbProps.DB_USERNAME;
 
+@SuppressWarnings("Duplicates")
 public class FindAllUsers {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(FindAllUsers.class);
