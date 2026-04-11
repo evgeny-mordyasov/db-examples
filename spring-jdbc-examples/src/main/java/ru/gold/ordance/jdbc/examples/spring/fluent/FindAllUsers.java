@@ -1,8 +1,10 @@
-package ru.gold.ordance.jdbc.examples.spring;
+package ru.gold.ordance.jdbc.examples.spring.fluent;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.jdbc.core.simple.JdbcClient;
 import ru.gold.ordance.jdbc.examples.common.db.RowMapper;
 import ru.gold.ordance.jdbc.examples.common.db.UserRowMapper;
 import ru.gold.ordance.jdbc.examples.common.db.model.User;
@@ -22,7 +24,7 @@ public class FindAllUsers {
             """;
 
     private static final RowMapper<User> MAPPER = new UserRowMapper();
-    private static final JdbcTemplate jdbc = new JdbcTemplate(createDataSource());
+    private static final JdbcClient jdbc = JdbcClient.create(createDataSource());
 
     public static void main(String[] args) {
         List<User> users = findAllUser();
@@ -32,6 +34,6 @@ public class FindAllUsers {
     }
 
     private static List<User> findAllUser() {
-        return jdbc.query(QUERY, (rs, num) -> MAPPER.map(rs));
+        return jdbc.sql(QUERY).query((rs, num) -> MAPPER.map(rs)).list();
     }
 }
