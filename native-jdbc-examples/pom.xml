@@ -10,7 +10,7 @@
         <version>1.0-SNAPSHOT</version>
     </parent>
 
-    <artifactId>native-examples</artifactId>
+    <artifactId>native-jdbc-examples</artifactId>
 
     <dependencies>
         <dependency>

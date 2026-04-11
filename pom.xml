@@ -12,7 +12,7 @@
 
     <modules>
         <module>common</module>
-        <module>native-examples</module>
+        <module>native-jdbc-examples</module>
     </modules>
 
     <properties>
@@ -28,15 +28,13 @@
                 <artifactId>common</artifactId>
                 <version>${project.version}</version>
             </dependency>
+
             <dependency>
-                <groupId>ch.qos.logback</groupId>
-                <artifactId>logback-classic</artifactId>
-                <version>1.5.32</version>
-            </dependency>
-            <dependency>
-                <groupId>org.postgresql</groupId>
-                <artifactId>postgresql</artifactId>
-                <version>42.7.5</version>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>4.0.5</version>
+                <type>pom</type>
+                <scope>import</scope>
             </dependency>
         </dependencies>
     </dependencyManagement>
