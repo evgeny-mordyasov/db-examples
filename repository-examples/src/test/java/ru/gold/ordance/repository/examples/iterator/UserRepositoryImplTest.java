@@ -101,7 +101,6 @@ class UserRepositoryImplTest {
         assertThat(iterator.hasNext()).isTrue();
         assertThat(iterator.next().getUserId()).isEqualTo(3);
         assertThat(iterator.hasNext()).isFalse();
-        assertThat(iterator.hasNext()).isFalse();
         assertThatThrownBy(iterator::next)
                 .isInstanceOf(NoSuchElementException.class);
 
