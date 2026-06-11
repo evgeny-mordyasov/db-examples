@@ -1,6 +1,7 @@
 package ru.gold.ordance.repository.examples.iterator;
 
 import org.springframework.jdbc.core.simple.JdbcClient;
+import ru.gold.ordance.jdbc.examples.common.Asserts;
 import ru.gold.ordance.jdbc.examples.common.db.RowMapper;
 import ru.gold.ordance.jdbc.examples.common.db.UserRowMapper;
 import ru.gold.ordance.jdbc.examples.common.db.model.User;
@@ -19,8 +20,8 @@ public class UserRepositoryImpl implements UserRepository {
     private final int batchSize;
 
     public UserRepositoryImpl(JdbcClient jdbc, int batchSize) {
-        this.jdbc = jdbc;
-        this.batchSize = batchSize;
+        this.jdbc = Asserts.nonNull(jdbc, "jdbc");
+        this.batchSize = Asserts.positive(batchSize, "batchSize");
     }
 
     private static final String GET_FIRST_BATCH = """
