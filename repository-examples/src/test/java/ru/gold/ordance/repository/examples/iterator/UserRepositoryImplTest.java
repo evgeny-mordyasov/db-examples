@@ -65,7 +65,7 @@ class UserRepositoryImplTest {
                 .isInstanceOf(NoSuchElementException.class);
 
         ArgumentCaptor<Map<String, Object>> paramsCaptor = ArgumentCaptor.forClass(Map.class);
-        verify(statementSpec, times(2)).params(paramsCaptor.capture());
+        verify(statementSpec).params(paramsCaptor.capture());
         assertThat(paramsCaptor.getAllValues())
                 .allSatisfy(params -> assertThat(params)
                         .containsEntry("batchSize", 2)
@@ -101,6 +101,9 @@ class UserRepositoryImplTest {
         assertThat(iterator.hasNext()).isTrue();
         assertThat(iterator.next().getUserId()).isEqualTo(3);
         assertThat(iterator.hasNext()).isFalse();
+        assertThat(iterator.hasNext()).isFalse();
+        assertThatThrownBy(iterator::next)
+                .isInstanceOf(NoSuchElementException.class);
 
         ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Map<String, Object>> paramsCaptor = ArgumentCaptor.forClass(Map.class);
