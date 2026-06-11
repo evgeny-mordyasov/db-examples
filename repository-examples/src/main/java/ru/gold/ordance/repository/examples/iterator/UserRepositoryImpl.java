@@ -59,6 +59,7 @@ public class UserRepositoryImpl implements UserRepository {
 
         private Iterator<User> pageIt;
         private Integer lastUserId;
+        private boolean endReached;
 
         abstract List<User> getUsers(Integer userId);
 
@@ -75,16 +76,19 @@ public class UserRepositoryImpl implements UserRepository {
 
         @Override
         public boolean hasNext() {
+            if (endReached) {
+                return false;
+            }
+
             if (pageIt == null || !pageIt.hasNext()) {
                 List<User> users = getUsers(lastUserId);
-                if (!users.isEmpty()) {
-                    pageIt = users.iterator();
+                if (users.isEmpty()) {
+                    endReached = true;
+                    return false;
                 }
+                pageIt = users.iterator();
             }
-            if (pageIt != null) {
-                return pageIt.hasNext();
-            }
-            return false;
+            return pageIt.hasNext();
         }
     }
 }
