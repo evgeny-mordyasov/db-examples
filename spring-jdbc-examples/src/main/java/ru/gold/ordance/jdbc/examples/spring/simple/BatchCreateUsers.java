@@ -21,7 +21,7 @@ public class BatchCreateUsers {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(BatchCreateUsers.class);
 
-    private static final int BATCH_SIZE = 10;
+    private static final int USERS_COUNT = 10;
 
     private static final String QUERY = """
             INSERT INTO users(username, email)
@@ -33,7 +33,7 @@ public class BatchCreateUsers {
     private static final TransactionTemplate tx = new TransactionTemplate(new DataSourceTransactionManager(dataSource));
 
     public static void main(String[] args) {
-        List<User> users = generateUsers(BATCH_SIZE);
+        List<User> users = generateUsers(USERS_COUNT);
         createUsers(users);
     }
 
@@ -52,7 +52,7 @@ public class BatchCreateUsers {
                     return users.size();
                 }
             });
-            LOGGER.info("Batch insert completed: batch size = {}.", users.size());
+            LOGGER.info("Batch insert completed: inserted users = {}.", users.size());
         });
     }
 }
