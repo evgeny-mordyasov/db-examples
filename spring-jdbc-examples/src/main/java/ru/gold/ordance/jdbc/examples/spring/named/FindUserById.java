@@ -7,6 +7,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import ru.gold.ordance.jdbc.examples.common.db.RowMapper;
 import ru.gold.ordance.jdbc.examples.common.db.UserRowMapper;
 import ru.gold.ordance.jdbc.examples.common.db.model.User;
+import ru.gold.ordance.jdbc.examples.common.exception.TooManyUsersFoundException;
 
 import java.util.List;
 import java.util.Map;
@@ -42,7 +43,7 @@ public class FindUserById {
         Map<String, Object> params = Map.of("user_id", userId);
         List<User> users = jdbc.query(QUERY, params, (rs, num) -> MAPPER.map(rs));
         if (users.size() > 1) {
-            throw new RuntimeException("Too many users found: " + users.size());
+            throw new TooManyUsersFoundException("Too many users found: " + users.size());
         }
         return users.isEmpty()
                 ? Optional.empty()

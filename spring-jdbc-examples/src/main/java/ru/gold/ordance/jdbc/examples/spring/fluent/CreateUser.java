@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import ru.gold.ordance.jdbc.examples.common.db.generator.UserGenerator;
 import ru.gold.ordance.jdbc.examples.common.db.model.User;
+import ru.gold.ordance.jdbc.examples.common.exception.UserInsertException;
 
 import java.util.Map;
 
@@ -31,7 +32,7 @@ public class CreateUser {
         Map<String, Object> params = Map.of("username", user.getUsername(), "email", user.getEmail());
         int res = jdbc.sql(QUERY).params(params).update();
         if (res == 0) {
-            throw new RuntimeException("Failed to insert new user.");
+            throw new UserInsertException("Failed to insert new user.");
         }
         LOGGER.info("A new user was inserted successfully.");
     }
