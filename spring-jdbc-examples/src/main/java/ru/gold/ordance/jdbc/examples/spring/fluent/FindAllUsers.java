@@ -2,8 +2,6 @@ package ru.gold.ordance.jdbc.examples.spring.fluent;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import ru.gold.ordance.jdbc.examples.common.db.RowMapper;
 import ru.gold.ordance.jdbc.examples.common.db.UserRowMapper;

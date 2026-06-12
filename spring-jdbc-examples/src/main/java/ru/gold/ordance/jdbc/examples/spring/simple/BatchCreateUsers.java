@@ -2,15 +2,13 @@ package ru.gold.ordance.jdbc.examples.spring.simple;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.jdbc.core.BatchPreparedStatementSetter;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.ParameterizedPreparedStatementSetter;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import ru.gold.ordance.jdbc.examples.common.db.model.User;
 
 import javax.sql.DataSource;
-import java.sql.PreparedStatement;
-import java.sql.SQLException;
 import java.util.List;
 
 import static ru.gold.ordance.jdbc.examples.common.db.generator.UserGenerator.generateUsers;
@@ -39,19 +37,12 @@ public class BatchCreateUsers {
 
     private static void createUsers(List<User> users) {
         tx.executeWithoutResult(ignored -> {
-            jdbc.batchUpdate(QUERY, new BatchPreparedStatementSetter() {
-                @Override
-                public void setValues(PreparedStatement ps, int i) throws SQLException {
-                    User user = users.get(i);
-                    ps.setString(1, user.getUsername());
-                    ps.setString(2, user.getEmail());
-                }
+            ParameterizedPreparedStatementSetter<User> setter = (ps, user) -> {
+                ps.setString(1, user.getUsername());
+                ps.setString(2, user.getEmail());
+            };
 
-                @Override
-                public int getBatchSize() {
-                    return users.size();
-                }
-            });
+            jdbc.batchUpdate(QUERY, users, users.size(), setter);
             LOGGER.info("Batch insert completed: inserted users = {}.", users.size());
         });
     }
