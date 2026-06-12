@@ -42,9 +42,9 @@ public class BatchCreateUsers {
                     ps.addBatch();
                 }
 
-                int[] res = ps.executeBatch();
+                ps.executeBatch();
                 con.commit();
-                LOGGER.info("{} new users were inserted successfully.", res.length);
+                LOGGER.info("Batch insert completed: batch size = {}.", users.size());
             } catch (SQLException e) {
                 con.rollback();
                 throw e;

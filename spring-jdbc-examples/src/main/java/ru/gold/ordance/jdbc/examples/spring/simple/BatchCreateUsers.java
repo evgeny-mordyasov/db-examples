@@ -39,7 +39,7 @@ public class BatchCreateUsers {
 
     private static void createUsers(List<User> users) {
         tx.executeWithoutResult(ignored -> {
-            int[] res = jdbc.batchUpdate(QUERY, new BatchPreparedStatementSetter() {
+            jdbc.batchUpdate(QUERY, new BatchPreparedStatementSetter() {
                 @Override
                 public void setValues(PreparedStatement ps, int i) throws SQLException {
                     User user = users.get(i);
@@ -52,7 +52,7 @@ public class BatchCreateUsers {
                     return users.size();
                 }
             });
-            LOGGER.info("{} new users were inserted successfully.", res.length);
+            LOGGER.info("Batch insert completed: batch size = {}.", users.size());
         });
     }
 }

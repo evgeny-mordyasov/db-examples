@@ -45,8 +45,8 @@ public class BatchCreateUsers {
                             .addValue("email", user.getEmail()))
                     .toArray(SqlParameterSource[]::new);
 
-            int[] res = jdbc.batchUpdate(QUERY, params);
-            LOGGER.info("{} new users were inserted successfully.", res.length);
+            jdbc.batchUpdate(QUERY, params);
+            LOGGER.info("Batch insert completed: batch size = {}.", users.size());
         });
     }
 }
