@@ -46,7 +46,11 @@ public class BatchCreateUsers {
                 con.commit();
                 LOGGER.info("Batch insert completed: batch size = {}.", users.size());
             } catch (SQLException e) {
-                con.rollback();
+                try {
+                    con.rollback();
+                } catch (SQLException rollbackEx) {
+                    e.addSuppressed(rollbackEx);
+                }
                 throw e;
             }
         }
