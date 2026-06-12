@@ -143,3 +143,69 @@ s.setQueryTimeout(0);
 Для PostgreSQL есть похожая серверная настройка `statement_timeout`. Она задается на стороне базы данных, а `setQueryTimeout` задается из Java-кода через JDBC. В учебном примере используется именно JDBC-подход.
 
 `setQueryTimeout` не ускоряет запрос сам по себе. Он только ограничивает максимальное время ожидания и помогает не зависать на долгих операциях.
+
+# `Connection#setTransactionIsolation`
+
+`setTransactionIsolation(int level)` - метод JDBC-интерфейса `Connection`, который задает уровень изоляции транзакций для соединения с базой данных.
+
+В примере `FindAllUsers_setTransactionIsolation.java`:
+
+```java
+try (Connection con = DriverManager.getConnection(DB_URL, DB_USERNAME, DB_PASSWORD)) {
+    con.setTransactionIsolation(Connection.TRANSACTION_REPEATABLE_READ);
+    try (Statement s = con.createStatement()) {
+        ...
+    }
+}
+```
+
+В Spring JDBC примерах уровень изоляции задается через `TransactionTemplate#setIsolationLevel(...)`:
+
+```java
+private static final TransactionTemplate tx;
+
+static {
+    tx = new TransactionTemplate(new DataSourceTransactionManager(dataSource));
+    tx.setIsolationLevel(TransactionDefinition.ISOLATION_REPEATABLE_READ);
+}
+```
+
+Для учебных примеров выбран уровень `REPEATABLE_READ`, чтобы явно показать отличие от стандартного для PostgreSQL уровня `READ COMMITTED`.
+
+## Для чего используется
+
+Уровень изоляции нужен, чтобы управлять тем, как параллельные транзакции видят изменения друг друга. Например:
+
+- запретить чтение неподтвержденных данных;
+- получить стабильный снимок данных на время транзакции;
+- снизить риск аномалий чтения при параллельных изменениях;
+- показать, что транзакционное поведение задается на уровне соединения, а не `Statement`.
+
+## Уровни изоляции JDBC
+
+JDBC описывает несколько стандартных уровней:
+
+- `Connection.TRANSACTION_READ_UNCOMMITTED` - самый слабый уровень, допускающий грязное чтение там, где база данных его поддерживает;
+- `Connection.TRANSACTION_READ_COMMITTED` - транзакция видит только подтвержденные данные;
+- `Connection.TRANSACTION_REPEATABLE_READ` - повторное чтение уже прочитанных строк внутри транзакции дает согласованный результат;
+- `Connection.TRANSACTION_SERIALIZABLE` - самый строгий уровень, при котором параллельные транзакции должны вести себя как последовательные.
+
+Также существует `Connection.TRANSACTION_NONE`, но он означает отсутствие поддержки транзакций и для обычной работы с PostgreSQL не используется.
+
+## Как работает
+
+В чистом JDBC настройка применяется к объекту `Connection`. После вызова `setTransactionIsolation(...)` все операции, выполняемые через это соединение, используют заданный уровень изоляции.
+
+В Spring JDBC примерах `JdbcTemplate`, `NamedParameterJdbcTemplate` и `JdbcClient` выполняются внутри `TransactionTemplate`. Spring сам открывает транзакцию, берет `Connection` из `DataSource` и применяет уровень изоляции, заданный через `tx.setIsolationLevel(TransactionDefinition.ISOLATION_REPEATABLE_READ)`.
+
+Уровень изоляции нужно задавать до начала транзакции. `TransactionTemplate` делает это естественным образом: настройка задается на шаблоне до вызова `tx.execute(...)`.
+
+## Важные нюансы
+
+В PostgreSQL уровень `READ UNCOMMITTED` фактически работает как `READ COMMITTED`, потому что PostgreSQL не допускает грязное чтение.
+
+Уровень `REPEATABLE READ` в PostgreSQL дает транзакции стабильный снимок данных. Это полезно для согласованного чтения, но не делает запросы быстрее и не заменяет блокировки, если они нужны бизнес-логике.
+
+Уровень `SERIALIZABLE` строже, но при конкурентных изменениях транзакция может завершиться ошибкой сериализации. В production-коде такие операции обычно требуют retry-механизма.
+
+`setTransactionIsolation` не открывает транзакцию сам по себе. Он только задает правило изоляции для транзакций, которые будут выполняться через соединение. В Spring-примерах транзакцию открывает `TransactionTemplate`.
