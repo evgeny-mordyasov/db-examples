@@ -1,0 +1,24 @@
+package ru.gold.ordance.repository.examples.outbox;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import ru.gold.ordance.jdbc.examples.common.Asserts;
+import ru.gold.ordance.jdbc.examples.common.db.model.Order;
+
+public class JacksonOutboxEventPayloadSerializer implements OutboxEventPayloadSerializer {
+
+    private final ObjectMapper objectMapper;
+
+    public JacksonOutboxEventPayloadSerializer(ObjectMapper objectMapper) {
+        this.objectMapper = Asserts.nonNull(objectMapper, "objectMapper");
+    }
+
+    @Override
+    public String serialize(Order order) {
+        try {
+            return objectMapper.writeValueAsString(order);
+        } catch (JsonProcessingException e) {
+            throw new IllegalStateException("Failed to serialize outbox event payload.", e);
+        }
+    }
+}
