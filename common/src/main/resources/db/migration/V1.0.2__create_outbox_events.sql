@@ -4,8 +4,8 @@ CREATE TABLE outbox_events (
     aggregate_id   VARCHAR(100) NOT NULL,
     event_type     VARCHAR(100) NOT NULL,
     payload        JSONB NOT NULL,
-    created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    processed_at   TIMESTAMP NULL
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    processed_at   TIMESTAMPTZ NULL
 );
 
 CREATE INDEX idx_outbox_events_unprocessed
