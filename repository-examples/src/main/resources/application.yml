@@ -4,7 +4,3 @@ spring:
     url: jdbc:postgresql://${postgres-addr}/testdb
     username: postgres
     password: postgres
-outbox:
-  relay:
-    max-error-length: 500
-    next-attempt-delay: 1s

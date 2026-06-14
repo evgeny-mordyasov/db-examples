@@ -21,7 +21,9 @@ public class Main {
     private static final Logger LOGGER = LoggerFactory.getLogger(Main.class);
 
     public static void main(String[] args) {
-        SpringApplication.run(Main.class, args);
+        SpringApplication application = new SpringApplication(Main.class);
+        application.setAdditionalProfiles("outbox");
+        application.run(args);
     }
 
     @Bean
