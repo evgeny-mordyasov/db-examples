@@ -4,7 +4,7 @@ import ru.gold.ordance.jdbc.examples.common.db.model.User;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.time.LocalDateTime;
+import java.sql.Timestamp;
 
 public class UserRowMapper implements ru.gold.ordance.jdbc.examples.common.db.RowMapper<User> {
 
@@ -14,7 +14,8 @@ public class UserRowMapper implements ru.gold.ordance.jdbc.examples.common.db.Ro
         user.setUserId(rs.getInt("user_id"));
         user.setUsername(rs.getString("username"));
         user.setEmail(rs.getString("email"));
-        user.setCreatedAt(rs.getObject("created_at", LocalDateTime.class));
+        Timestamp createdAt = rs.getTimestamp("created_at");
+        user.setCreatedAt(createdAt == null ? null : createdAt.toLocalDateTime());
         return user;
     }
 }

@@ -12,6 +12,7 @@
 
     <modules>
         <module>common</module>
+        <module>testcontainers-support</module>
         <module>native-jdbc-examples</module>
         <module>spring-jdbc-examples</module>
         <module>repository-examples</module>
@@ -28,6 +29,11 @@
             <dependency>
                 <groupId>ru.gold.ordance</groupId>
                 <artifactId>common</artifactId>
+                <version>${project.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>ru.gold.ordance</groupId>
+                <artifactId>testcontainers-support</artifactId>
                 <version>${project.version}</version>
             </dependency>
 
