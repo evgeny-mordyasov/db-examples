@@ -9,6 +9,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Profile;
 import ru.gold.ordance.jdbc.examples.common.db.model.Order;
 import ru.gold.ordance.repository.examples.outbox.OrderService;
+import ru.gold.ordance.repository.examples.outbox.OutboxEventRelay;
 
 import java.math.BigDecimal;
 
@@ -23,7 +24,7 @@ public class Main {
 
     @Bean
     @Profile("!test")
-    ApplicationRunner outboxExampleRunner(OrderService orderService) {
+    ApplicationRunner outboxExampleRunner(OrderService orderService, OutboxEventRelay outboxEventRelay) {
         return args -> {
             Order newOrder = new Order();
             newOrder.setUserId(1);
@@ -31,6 +32,8 @@ public class Main {
             newOrder.setAmount(new BigDecimal("99.90"));
             Order savedOrder = orderService.createOrder(newOrder);
             LOGGER.info("Created order and outbox event in one transaction: {}", savedOrder);
+            OutboxEventRelay.PollResult result = outboxEventRelay.pollBatch(10);
+            LOGGER.info("Outbox relay poll result: {}", result);
         };
     }
 }

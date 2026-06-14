@@ -12,6 +12,9 @@ public class OutboxEvent {
     private String payload;
     private OffsetDateTime createdAt;
     private OffsetDateTime processedAt;
+    private int attemptCount;
+    private String lastError;
+    private OffsetDateTime nextAttemptAt;
 
     public UUID getEventId() {
         return eventId;
@@ -69,6 +72,30 @@ public class OutboxEvent {
         this.processedAt = processedAt;
     }
 
+    public int getAttemptCount() {
+        return attemptCount;
+    }
+
+    public void setAttemptCount(int attemptCount) {
+        this.attemptCount = attemptCount;
+    }
+
+    public String getLastError() {
+        return lastError;
+    }
+
+    public void setLastError(String lastError) {
+        this.lastError = lastError;
+    }
+
+    public OffsetDateTime getNextAttemptAt() {
+        return nextAttemptAt;
+    }
+
+    public void setNextAttemptAt(OffsetDateTime nextAttemptAt) {
+        this.nextAttemptAt = nextAttemptAt;
+    }
+
     @Override
     public String toString() {
         return "OutboxEvent{" +
@@ -79,6 +106,9 @@ public class OutboxEvent {
                 ", payload='" + payload + '\'' +
                 ", createdAt=" + createdAt +
                 ", processedAt=" + processedAt +
+                ", attemptCount=" + attemptCount +
+                ", lastError='" + lastError + '\'' +
+                ", nextAttemptAt=" + nextAttemptAt +
                 '}';
     }
 }

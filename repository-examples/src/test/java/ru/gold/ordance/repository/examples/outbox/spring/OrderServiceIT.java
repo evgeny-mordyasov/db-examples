@@ -13,9 +13,17 @@ import ru.gold.ordance.jdbc.examples.common.db.model.Order;
 import ru.gold.ordance.jdbc.examples.testcontainers.Containers;
 import ru.gold.ordance.repository.examples.outbox.OrderRepository;
 import ru.gold.ordance.repository.examples.outbox.OrderService;
+import ru.gold.ordance.repository.examples.outbox.OutboxEventRelay;
 import ru.gold.ordance.repository.examples.outbox.OutboxEventRepository;
+import ru.gold.ordance.jdbc.examples.common.db.model.OutboxEvent;
 
 import java.math.BigDecimal;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.util.List;
+import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -29,6 +37,7 @@ class OrderServiceIT {
     @Autowired private TransactionTemplate tx;
     @Autowired private OrderRepository orderRepository;
     @Autowired private OutboxEventRepository outboxEventRepository;
+    @Autowired private OutboxEventRelay outboxEventRelay;
     @Autowired private OrderService service;
     @Autowired private Flyway flyway;
 
@@ -56,6 +65,60 @@ class OrderServiceIT {
                 ))
                 .single())
                 .isEqualTo(new OutboxEventRow("Order", String.valueOf(savedOrder.getOrderId()), "OrderCreated"));
+        assertThat(unprocessedEventCount()).isEqualTo(1);
+    }
+
+    @Test
+    void outboxRelay_marksEventProcessed() {
+        service.createOrder(newOrder());
+
+        OutboxEventRelay.PollResult result = outboxEventRelay.pollBatch(10);
+
+        assertThat(result).isEqualTo(new OutboxEventRelay.PollResult(1, 1, 0));
+        assertThat(unprocessedEventCount()).isZero();
+        assertThat(jdbc.sql("""
+                        SELECT processed_at IS NOT NULL
+                        FROM outbox_events
+                        """)
+                .query(Boolean.class)
+                .single())
+                .isTrue();
+    }
+
+    @Test
+    void outboxRelay_recordsFailureAndRetryState() {
+        service.createOrder(newOrder());
+        Clock clock = Clock.fixed(Instant.parse("2026-01-02T03:04:00Z"), ZoneOffset.UTC);
+        OutboxEventRelay failingRelay = new OutboxEventRelay(
+                tx,
+                outboxEventRepository,
+                event -> {
+                    throw new RuntimeException("Consumer failed");
+                },
+                clock
+        );
+
+        OutboxEventRelay.PollResult result = failingRelay.pollBatch(10);
+
+        assertThat(result).isEqualTo(new OutboxEventRelay.PollResult(1, 0, 1));
+        RetryRow row = jdbc.sql("""
+                        SELECT processed_at,
+                               attempt_count,
+                               last_error,
+                               next_attempt_at
+                        FROM outbox_events
+                        """)
+                .query((rs, rowNum) -> new RetryRow(
+                        rs.getObject("processed_at", OffsetDateTime.class),
+                        rs.getInt("attempt_count"),
+                        rs.getString("last_error"),
+                        rs.getObject("next_attempt_at", OffsetDateTime.class)
+                ))
+                .single();
+        assertThat(row.processedAt()).isNull();
+        assertThat(row.attemptCount()).isEqualTo(1);
+        assertThat(row.lastError()).isEqualTo("Consumer failed");
+        assertThat(row.nextAttemptAt()).isEqualTo(OffsetDateTime.parse("2026-01-02T03:04:01Z"));
     }
 
     @Test
@@ -64,10 +127,7 @@ class OrderServiceIT {
         OrderService failingService = new OrderService(
                 tx,
                 orderRepository,
-                order -> {
-                    outboxEventRepository.save(order);
-                    throw error;
-                }
+                failingAfterSaveOutboxRepository(error)
         );
 
         assertThatThrownBy(() -> failingService.createOrder(newOrder()))
@@ -93,6 +153,37 @@ class OrderServiceIT {
                 .single();
     }
 
+    private int unprocessedEventCount() {
+        return jdbc.sql("SELECT COUNT(*) FROM outbox_events WHERE processed_at IS NULL")
+                .query(Integer.class)
+                .single();
+    }
+
+    private OutboxEventRepository failingAfterSaveOutboxRepository(RuntimeException error) {
+        return new OutboxEventRepository() {
+            @Override
+            public void save(Order order) {
+                outboxEventRepository.save(order);
+                throw error;
+            }
+
+            @Override
+            public List<OutboxEvent> findUnprocessedBatch(int batchSize) {
+                return outboxEventRepository.findUnprocessedBatch(batchSize);
+            }
+
+            @Override
+            public void markProcessed(UUID eventId) {
+                outboxEventRepository.markProcessed(eventId);
+            }
+
+            @Override
+            public void markFailed(UUID eventId, String lastError, OffsetDateTime nextAttemptAt) {
+                outboxEventRepository.markFailed(eventId, lastError, nextAttemptAt);
+            }
+        };
+    }
+
     private static Order newOrder() {
         Order order = new Order();
         order.setUserId(7);
@@ -102,5 +193,13 @@ class OrderServiceIT {
     }
 
     private record OutboxEventRow(String aggregateType, String aggregateId, String eventType) {
+    }
+
+    private record RetryRow(
+            OffsetDateTime processedAt,
+            int attemptCount,
+            String lastError,
+            OffsetDateTime nextAttemptAt
+    ) {
     }
 }

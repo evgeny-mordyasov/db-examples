@@ -8,10 +8,13 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.transaction.support.TransactionTemplate;
 import ru.gold.ordance.repository.examples.outbox.JacksonOutboxEventPayloadSerializer;
+import ru.gold.ordance.repository.examples.outbox.LoggingOutboxEventConsumer;
 import ru.gold.ordance.repository.examples.outbox.OrderRepository;
 import ru.gold.ordance.repository.examples.outbox.OrderRepositoryImpl;
 import ru.gold.ordance.repository.examples.outbox.OrderService;
+import ru.gold.ordance.repository.examples.outbox.OutboxEventConsumer;
 import ru.gold.ordance.repository.examples.outbox.OutboxEventPayloadSerializer;
+import ru.gold.ordance.repository.examples.outbox.OutboxEventRelay;
 import ru.gold.ordance.repository.examples.outbox.OutboxEventRepository;
 import ru.gold.ordance.repository.examples.outbox.OutboxEventRepositoryImpl;
 
@@ -41,6 +44,20 @@ public class ApplicationConfig {
             OutboxEventPayloadSerializer payloadSerializer
     ) {
         return new OutboxEventRepositoryImpl(jdbcClient, payloadSerializer);
+    }
+
+    @Bean
+    OutboxEventConsumer outboxEventConsumer() {
+        return new LoggingOutboxEventConsumer();
+    }
+
+    @Bean
+    OutboxEventRelay outboxEventRelay(
+            TransactionTemplate transactionTemplate,
+            OutboxEventRepository outboxEventRepository,
+            OutboxEventConsumer outboxEventConsumer
+    ) {
+        return new OutboxEventRelay(transactionTemplate, outboxEventRepository, outboxEventConsumer);
     }
 
     @Bean
