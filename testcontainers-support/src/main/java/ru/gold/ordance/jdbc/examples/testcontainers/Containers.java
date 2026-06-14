@@ -14,7 +14,7 @@ import java.util.function.Supplier;
 import static org.testcontainers.utility.DockerImageName.parse;
 
 @Configuration(proxyBeanMethods = false)
-public class TestcontainersPostgresConfiguration {
+public class Containers {
 
     private static final String POSTGRES = "postgres:17-alpine";
     private static final String PG_CONN_STR = "postgres-addr";
