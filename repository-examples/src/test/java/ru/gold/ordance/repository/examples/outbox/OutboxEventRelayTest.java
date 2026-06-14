@@ -10,6 +10,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import ru.gold.ordance.jdbc.examples.common.db.model.OutboxEvent;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -94,6 +95,56 @@ class OutboxEventRelayTest {
                 any(OffsetDateTime.class)
         );
         assertThat(errorCaptor.getValue()).hasSize(500);
+    }
+
+    @Test
+    void pollBatch_usesConfiguredMaxErrorLength() {
+        OutboxEvent failure = event("23eb899d-ddf1-4687-a6fe-8231dbf5f383", 0);
+        stubTransaction();
+        when(repository.findUnprocessedBatch(1)).thenReturn(List.of(failure));
+        failForEvent(failure, "x".repeat(50));
+
+        OutboxEventRelay relay = new OutboxEventRelay(
+                tx,
+                repository,
+                consumer,
+                new OutboxEventRelay.Properties(10, Duration.ofSeconds(1)),
+                clock
+        );
+
+        relay.pollBatch(1);
+
+        ArgumentCaptor<String> errorCaptor = ArgumentCaptor.forClass(String.class);
+        verify(repository).markFailed(
+                any(UUID.class),
+                errorCaptor.capture(),
+                any(OffsetDateTime.class)
+        );
+        assertThat(errorCaptor.getValue()).hasSize(10);
+    }
+
+    @Test
+    void pollBatch_usesConfiguredNextAttemptDelay() {
+        OutboxEvent failure = event("23eb899d-ddf1-4687-a6fe-8231dbf5f383", 1);
+        stubTransaction();
+        when(repository.findUnprocessedBatch(1)).thenReturn(List.of(failure));
+        failForEvent(failure, "Delivery timeout");
+
+        OutboxEventRelay relay = new OutboxEventRelay(
+                tx,
+                repository,
+                consumer,
+                new OutboxEventRelay.Properties(500, Duration.ofMinutes(2)),
+                clock
+        );
+
+        relay.pollBatch(1);
+
+        verify(repository).markFailed(
+                failure.getEventId(),
+                "Delivery timeout",
+                OffsetDateTime.parse("2026-01-02T03:08:00Z")
+        );
     }
 
     @SuppressWarnings("unchecked")
