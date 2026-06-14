@@ -8,6 +8,9 @@ import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
 import ru.gold.ordance.jdbc.examples.common.db.model.Order;
+import ru.gold.ordance.repository.examples.outbox.repository.OrderRepository;
+import ru.gold.ordance.repository.examples.outbox.repository.OutboxEventRepository;
+import ru.gold.ordance.repository.examples.outbox.service.OrderService;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;

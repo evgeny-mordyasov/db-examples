@@ -9,6 +9,9 @@ import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
 import ru.gold.ordance.jdbc.examples.common.db.model.OutboxEvent;
 import ru.gold.ordance.repository.examples.outbox.properties.OutboxEventRelayProperties;
+import ru.gold.ordance.repository.examples.outbox.repository.OutboxEventRepository;
+import ru.gold.ordance.repository.examples.outbox.service.OutboxEventConsumer;
+import ru.gold.ordance.repository.examples.outbox.service.OutboxEventRelay;
 
 import java.time.Clock;
 import java.time.Duration;

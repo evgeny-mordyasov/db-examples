@@ -1,9 +1,10 @@
-package ru.gold.ordance.repository.examples.outbox;
+package ru.gold.ordance.repository.examples.outbox.service;
 
 import org.springframework.transaction.support.TransactionTemplate;
 import ru.gold.ordance.jdbc.examples.common.Asserts;
 import ru.gold.ordance.jdbc.examples.common.db.model.OutboxEvent;
 import ru.gold.ordance.repository.examples.outbox.properties.OutboxEventRelayProperties;
+import ru.gold.ordance.repository.examples.outbox.repository.OutboxEventRepository;
 
 import java.time.Clock;
 import java.time.Duration;

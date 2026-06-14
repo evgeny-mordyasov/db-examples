@@ -9,6 +9,9 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import ru.gold.ordance.jdbc.examples.common.db.model.Order;
 import ru.gold.ordance.jdbc.examples.common.db.model.OutboxEvent;
+import ru.gold.ordance.repository.examples.outbox.repository.OutboxEventRepository;
+import ru.gold.ordance.repository.examples.outbox.repository.OutboxEventRepositoryImpl;
+import ru.gold.ordance.repository.examples.outbox.service.OutboxEventPayloadSerializer;
 
 import java.sql.ResultSet;
 import java.math.BigDecimal;

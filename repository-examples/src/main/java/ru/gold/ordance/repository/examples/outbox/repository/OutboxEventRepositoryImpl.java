@@ -1,9 +1,10 @@
-package ru.gold.ordance.repository.examples.outbox;
+package ru.gold.ordance.repository.examples.outbox.repository;
 
 import org.springframework.jdbc.core.simple.JdbcClient;
 import ru.gold.ordance.jdbc.examples.common.Asserts;
 import ru.gold.ordance.jdbc.examples.common.db.model.Order;
 import ru.gold.ordance.jdbc.examples.common.db.model.OutboxEvent;
+import ru.gold.ordance.repository.examples.outbox.service.OutboxEventPayloadSerializer;
 
 import java.time.OffsetDateTime;
 import java.util.List;

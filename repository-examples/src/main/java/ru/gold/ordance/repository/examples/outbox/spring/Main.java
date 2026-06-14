@@ -9,8 +9,8 @@ import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Profile;
 import ru.gold.ordance.jdbc.examples.common.db.model.Order;
-import ru.gold.ordance.repository.examples.outbox.OrderService;
-import ru.gold.ordance.repository.examples.outbox.OutboxEventRelay;
+import ru.gold.ordance.repository.examples.outbox.service.OrderService;
+import ru.gold.ordance.repository.examples.outbox.service.OutboxEventRelay;
 
 import java.math.BigDecimal;
 

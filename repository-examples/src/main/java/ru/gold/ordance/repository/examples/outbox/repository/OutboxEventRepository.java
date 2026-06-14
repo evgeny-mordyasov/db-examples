@@ -1,4 +1,4 @@
-package ru.gold.ordance.repository.examples.outbox;
+package ru.gold.ordance.repository.examples.outbox.repository;
 
 import ru.gold.ordance.jdbc.examples.common.db.model.Order;
 import ru.gold.ordance.jdbc.examples.common.db.model.OutboxEvent;

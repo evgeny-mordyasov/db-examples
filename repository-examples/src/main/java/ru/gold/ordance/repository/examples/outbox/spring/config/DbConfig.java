@@ -3,11 +3,11 @@ package ru.gold.ordance.repository.examples.outbox.spring.config;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.simple.JdbcClient;
-import ru.gold.ordance.repository.examples.outbox.OrderRepository;
-import ru.gold.ordance.repository.examples.outbox.OrderRepositoryImpl;
-import ru.gold.ordance.repository.examples.outbox.OutboxEventPayloadSerializer;
-import ru.gold.ordance.repository.examples.outbox.OutboxEventRepository;
-import ru.gold.ordance.repository.examples.outbox.OutboxEventRepositoryImpl;
+import ru.gold.ordance.repository.examples.outbox.repository.OrderRepository;
+import ru.gold.ordance.repository.examples.outbox.repository.OrderRepositoryImpl;
+import ru.gold.ordance.repository.examples.outbox.service.OutboxEventPayloadSerializer;
+import ru.gold.ordance.repository.examples.outbox.repository.OutboxEventRepository;
+import ru.gold.ordance.repository.examples.outbox.repository.OutboxEventRepositoryImpl;
 
 @Configuration
 public class DbConfig {
