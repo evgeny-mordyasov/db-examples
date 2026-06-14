@@ -26,13 +26,13 @@ public class ApplicationConfig {
     }
 
     @Bean
-    OrderRepository orderRepository(JdbcClient jdbcClient) {
-        return new OrderRepositoryImpl(jdbcClient);
+    OutboxEventPayloadSerializer outboxEventPayloadSerializer(ObjectMapper objectMapper) {
+        return new JacksonOutboxEventPayloadSerializer(objectMapper);
     }
 
     @Bean
-    OutboxEventPayloadSerializer outboxEventPayloadSerializer(ObjectMapper objectMapper) {
-        return new JacksonOutboxEventPayloadSerializer(objectMapper);
+    OrderRepository orderRepository(JdbcClient jdbcClient) {
+        return new OrderRepositoryImpl(jdbcClient);
     }
 
     @Bean

@@ -5,8 +5,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Profile;
 import ru.gold.ordance.jdbc.examples.common.db.model.Order;
 import ru.gold.ordance.repository.examples.outbox.OrderService;
 
@@ -22,7 +22,7 @@ public class Main {
     }
 
     @Bean
-    @ConditionalOnProperty(prefix = "examples", name = "run", havingValue = "true", matchIfMissing = true)
+    @Profile("!test")
     ApplicationRunner outboxExampleRunner(OrderService orderService) {
         return args -> {
             Order newOrder = new Order();

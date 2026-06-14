@@ -1,28 +1,28 @@
-package ru.gold.ordance.repository.examples.outbox;
+package ru.gold.ordance.repository.examples.outbox.spring;
 
 import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.support.TransactionTemplate;
 import ru.gold.ordance.jdbc.examples.common.db.model.Order;
 import ru.gold.ordance.jdbc.examples.testcontainers.TestcontainersPostgresConfiguration;
-import ru.gold.ordance.repository.examples.outbox.spring.Main;
+import ru.gold.ordance.repository.examples.outbox.OrderRepository;
+import ru.gold.ordance.repository.examples.outbox.OrderService;
+import ru.gold.ordance.repository.examples.outbox.OutboxEventRepository;
 
 import java.math.BigDecimal;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
-@SpringBootTest(classes = {
-        Main.class,
-        TestcontainersPostgresConfiguration.class
-}, properties = {
-        "spring.main.web-application-type=none",
-        "examples.run=false"
-})
+@SpringBootTest
+@ActiveProfiles("test")
+@Import(TestcontainersPostgresConfiguration.class)
 class OrderServiceIT {
 
     @Autowired private JdbcClient jdbc;
