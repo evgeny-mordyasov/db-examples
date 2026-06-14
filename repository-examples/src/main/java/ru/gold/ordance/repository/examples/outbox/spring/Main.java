@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Profile;
 import ru.gold.ordance.jdbc.examples.common.db.model.Order;
@@ -14,6 +15,7 @@ import ru.gold.ordance.repository.examples.outbox.OutboxEventRelay;
 import java.math.BigDecimal;
 
 @SpringBootApplication
+@ConfigurationPropertiesScan
 public class Main {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(Main.class);

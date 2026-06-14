@@ -14,11 +14,13 @@ import ru.gold.ordance.jdbc.examples.testcontainers.Containers;
 import ru.gold.ordance.repository.examples.outbox.OrderRepository;
 import ru.gold.ordance.repository.examples.outbox.OrderService;
 import ru.gold.ordance.repository.examples.outbox.OutboxEventRelay;
+import ru.gold.ordance.repository.examples.outbox.properties.OutboxEventRelayProperties;
 import ru.gold.ordance.repository.examples.outbox.OutboxEventRepository;
 import ru.gold.ordance.jdbc.examples.common.db.model.OutboxEvent;
 
 import java.math.BigDecimal;
 import java.time.Clock;
+import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -29,7 +31,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest
-@ActiveProfiles("test")
+@ActiveProfiles({"test", "outbox"})
 @Import(Containers.class)
 class OrderServiceIT {
 
@@ -95,6 +97,7 @@ class OrderServiceIT {
                 event -> {
                     throw new RuntimeException("Consumer failed");
                 },
+                properties(500, Duration.ofSeconds(1)),
                 clock
         );
 
@@ -190,6 +193,13 @@ class OrderServiceIT {
         order.setProductName("Keyboard");
         order.setAmount(new BigDecimal("99.90"));
         return order;
+    }
+
+    private static OutboxEventRelayProperties properties(int maxErrorLength, Duration nextAttemptDelay) {
+        OutboxEventRelayProperties properties = new OutboxEventRelayProperties();
+        properties.setMaxErrorLength(maxErrorLength);
+        properties.setNextAttemptDelay(nextAttemptDelay);
+        return properties;
     }
 
     private record OutboxEventRow(String aggregateType, String aggregateId, String eventType) {

@@ -3,7 +3,7 @@ package ru.gold.ordance.repository.examples.outbox.spring.config;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.simple.JdbcClient;
@@ -16,10 +16,11 @@ import ru.gold.ordance.repository.examples.outbox.OrderService;
 import ru.gold.ordance.repository.examples.outbox.OutboxEventConsumer;
 import ru.gold.ordance.repository.examples.outbox.OutboxEventPayloadSerializer;
 import ru.gold.ordance.repository.examples.outbox.OutboxEventRelay;
+import ru.gold.ordance.repository.examples.outbox.properties.OutboxEventRelayProperties;
 import ru.gold.ordance.repository.examples.outbox.OutboxEventRepository;
 import ru.gold.ordance.repository.examples.outbox.OutboxEventRepositoryImpl;
 
-import java.time.Duration;
+import java.time.Clock;
 
 @Configuration(proxyBeanMethods = false)
 public class ApplicationConfig {
@@ -55,18 +56,30 @@ public class ApplicationConfig {
     }
 
     @Bean
+    @ConfigurationProperties("outbox.relay")
+    OutboxEventRelayProperties outboxEventRelayProperties() {
+        return new OutboxEventRelayProperties();
+    }
+
+    @Bean
+    Clock clock() {
+        return Clock.systemDefaultZone();
+    }
+
+    @Bean
     OutboxEventRelay outboxEventRelay(
             TransactionTemplate transactionTemplate,
             OutboxEventRepository outboxEventRepository,
             OutboxEventConsumer outboxEventConsumer,
-            @Value("${outbox.relay.max-error-length}") int maxErrorLength,
-            @Value("${outbox.relay.next-attempt-delay}") Duration nextAttemptDelay
+            OutboxEventRelayProperties properties,
+            Clock clock
     ) {
         return new OutboxEventRelay(
                 transactionTemplate,
                 outboxEventRepository,
                 outboxEventConsumer,
-                new OutboxEventRelay.Properties(maxErrorLength, nextAttemptDelay)
+                properties,
+                clock
         );
     }
 

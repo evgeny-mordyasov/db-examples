@@ -8,6 +8,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.transaction.support.TransactionCallback;
 import org.springframework.transaction.support.TransactionTemplate;
 import ru.gold.ordance.jdbc.examples.common.db.model.OutboxEvent;
+import ru.gold.ordance.repository.examples.outbox.properties.OutboxEventRelayProperties;
 
 import java.time.Clock;
 import java.time.Duration;
@@ -36,14 +37,14 @@ class OutboxEventRelayTest {
 
     @Test
     void createInstance_transactionTemplateIsNull() {
-        assertThatThrownBy(() -> new OutboxEventRelay(null, repository, consumer, clock))
+        assertThatThrownBy(() -> newRelay(null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("[transactionTemplate] must not be null.");
     }
 
     @Test
     void pollBatch_batchSizeIsZero() {
-        OutboxEventRelay relay = new OutboxEventRelay(tx, repository, consumer, clock);
+        OutboxEventRelay relay = newRelay(tx);
 
         assertThatThrownBy(() -> relay.pollBatch(0))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -59,7 +60,7 @@ class OutboxEventRelayTest {
         when(repository.findUnprocessedBatch(10)).thenReturn(List.of(success, failure));
         failForEvent(failure, "Delivery timeout");
 
-        OutboxEventRelay relay = new OutboxEventRelay(tx, repository, consumer, clock);
+        OutboxEventRelay relay = newRelay(tx);
 
         OutboxEventRelay.PollResult result = relay.pollBatch(10);
 
@@ -84,7 +85,7 @@ class OutboxEventRelayTest {
         when(repository.findUnprocessedBatch(1)).thenReturn(List.of(failure));
         failForEvent(failure, "x".repeat(600));
 
-        OutboxEventRelay relay = new OutboxEventRelay(tx, repository, consumer, clock);
+        OutboxEventRelay relay = newRelay(tx);
 
         relay.pollBatch(1);
 
@@ -108,7 +109,7 @@ class OutboxEventRelayTest {
                 tx,
                 repository,
                 consumer,
-                new OutboxEventRelay.Properties(10, Duration.ofSeconds(1)),
+                properties(10, Duration.ofSeconds(1)),
                 clock
         );
 
@@ -134,7 +135,7 @@ class OutboxEventRelayTest {
                 tx,
                 repository,
                 consumer,
-                new OutboxEventRelay.Properties(500, Duration.ofMinutes(2)),
+                properties(500, Duration.ofMinutes(2)),
                 clock
         );
 
@@ -163,6 +164,23 @@ class OutboxEventRelayTest {
             }
             return null;
         }).when(consumer).accept(any(OutboxEvent.class));
+    }
+
+    private OutboxEventRelay newRelay(TransactionTemplate transactionTemplate) {
+        return new OutboxEventRelay(
+                transactionTemplate,
+                repository,
+                consumer,
+                properties(500, Duration.ofSeconds(1)),
+                clock
+        );
+    }
+
+    private static OutboxEventRelayProperties properties(int maxErrorLength, Duration nextAttemptDelay) {
+        OutboxEventRelayProperties properties = new OutboxEventRelayProperties();
+        properties.setMaxErrorLength(maxErrorLength);
+        properties.setNextAttemptDelay(nextAttemptDelay);
+        return properties;
     }
 
     private static OutboxEvent event(String eventId, int attemptCount) {

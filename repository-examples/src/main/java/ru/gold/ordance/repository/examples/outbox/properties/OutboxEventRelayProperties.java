@@ -1,0 +1,25 @@
+package ru.gold.ordance.repository.examples.outbox.properties;
+
+import java.time.Duration;
+
+public class OutboxEventRelayProperties {
+
+    private int maxErrorLength;
+    private Duration nextAttemptDelay;
+
+    public int getMaxErrorLength() {
+        return maxErrorLength;
+    }
+
+    public void setMaxErrorLength(int maxErrorLength) {
+        this.maxErrorLength = maxErrorLength;
+    }
+
+    public Duration getNextAttemptDelay() {
+        return nextAttemptDelay;
+    }
+
+    public void setNextAttemptDelay(Duration nextAttemptDelay) {
+        this.nextAttemptDelay = nextAttemptDelay;
+    }
+}
