@@ -1,5 +1,6 @@
+postgres-addr: localhost:5433
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5433/testdb
+    url: jdbc:postgresql://${postgres-addr}/testdb
     username: postgres
     password: postgres
