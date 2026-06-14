@@ -6,6 +6,7 @@ import ru.gold.ordance.jdbc.examples.common.db.model.OutboxEvent;
 import ru.gold.ordance.repository.examples.outbox.properties.OutboxEventRelayProperties;
 
 import java.time.Clock;
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.List;
 
@@ -62,8 +63,9 @@ public class OutboxEventRelay {
     }
 
     private OffsetDateTime nextAttemptAt(OutboxEvent event) {
-        long attempts = Math.max(1, event.getAttemptCount() + 1L);
-        return OffsetDateTime.now(clock).plus(properties.getNextAttemptDelay().multipliedBy(attempts));
+        long nextAttemptNumber = event.getAttemptCount() + 1L;
+        Duration delay = properties.getNextAttemptDelay().multipliedBy(nextAttemptNumber);
+        return OffsetDateTime.now(clock).plus(delay);
     }
 
     private String truncate(String value) {
