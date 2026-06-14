@@ -6,8 +6,8 @@ import ru.gold.ordance.jdbc.examples.common.db.model.User;
 import java.lang.reflect.Proxy;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Timestamp;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -15,7 +15,7 @@ class UserRowMapperTest {
 
     @Test
     void map_withTimestampWithTimeZoneColumn_ShouldReadCreatedAt() throws SQLException {
-        LocalDateTime createdAt = LocalDateTime.of(2026, 1, 2, 3, 4);
+        OffsetDateTime createdAt = OffsetDateTime.of(2026, 1, 2, 3, 4, 0, 0, ZoneOffset.ofHours(3));
         ResultSet resultSet = resultSet(createdAt);
 
         User user = new UserRowMapper().map(resultSet);
@@ -26,7 +26,7 @@ class UserRowMapperTest {
         assertThat(user.getCreatedAt()).isEqualTo(createdAt);
     }
 
-    private static ResultSet resultSet(LocalDateTime createdAt) {
+    private static ResultSet resultSet(OffsetDateTime createdAt) {
         return (ResultSet) Proxy.newProxyInstance(
                 ResultSet.class.getClassLoader(),
                 new Class<?>[]{ResultSet.class},
@@ -37,8 +37,7 @@ class UserRowMapperTest {
                         case "email" -> "maria@gmail.com";
                         default -> null;
                     };
-                    case "getTimestamp" -> Timestamp.valueOf(createdAt);
-                    case "getObject" -> throw new SQLException("Cannot convert the column of type TIMESTAMPTZ to requested type java.time.LocalDateTime.");
+                    case "getObject" -> createdAt;
                     default -> throw new UnsupportedOperationException(method.getName());
                 });
     }

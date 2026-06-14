@@ -1,7 +1,7 @@
 package ru.gold.ordance.jdbc.examples.common.db.model;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 public class Order {
 
@@ -9,7 +9,7 @@ public class Order {
     private int userId;
     private String productName;
     private BigDecimal amount;
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
 
     public int getOrderId() {
         return orderId;
@@ -43,11 +43,11 @@ public class Order {
         this.amount = amount;
     }
 
-    public LocalDateTime getCreatedAt() {
+    public OffsetDateTime getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
+    public void setCreatedAt(OffsetDateTime createdAt) {
         this.createdAt = createdAt;
     }
 

@@ -9,7 +9,7 @@ import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import ru.gold.ordance.jdbc.examples.common.db.model.User;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -138,7 +138,7 @@ class UserRepositoryImplTest {
         user.setUserId(id);
         user.setUsername("user" + id);
         user.setEmail("user" + id + "@mail.test");
-        user.setCreatedAt(LocalDateTime.of(2026, 1, id, 0, 0));
+        user.setCreatedAt(OffsetDateTime.parse("2026-01-0" + id + "T00:00:00+03:00"));
         return user;
     }
 }

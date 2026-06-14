@@ -1,13 +1,13 @@
 package ru.gold.ordance.jdbc.examples.common.db.model;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 public class User {
 
     private int userId;
     private String username;
     private String email;
-    private LocalDateTime createdAt;
+    private OffsetDateTime createdAt;
 
     public int getUserId() {
         return userId;
@@ -33,11 +33,11 @@ public class User {
         this.email = email;
     }
 
-    public LocalDateTime getCreatedAt() {
+    public OffsetDateTime getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
+    public void setCreatedAt(OffsetDateTime createdAt) {
         this.createdAt = createdAt;
     }
 

@@ -9,7 +9,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import ru.gold.ordance.jdbc.examples.common.db.model.Order;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.Map;
 import java.util.UUID;
 
@@ -59,7 +59,7 @@ class OutboxEventRepositoryImplTest {
     void save_success() {
         Order order = order();
         String payload = """
-                {"orderId":11,"userId":7,"productName":"Keyboard","amount":99.90,"createdAt":"2026-01-02T03:04:00"}
+                {"orderId":11,"userId":7,"productName":"Keyboard","amount":99.90,"createdAt":"2026-01-02T03:04:00+03:00"}
                 """;
         when(payloadSerializer.serialize(any(Order.class))).thenReturn(payload);
         when(jdbc.sql(anyString())).thenReturn(statementSpec);
@@ -80,7 +80,7 @@ class OutboxEventRepositoryImplTest {
                         Order::getAmount,
                         Order::getCreatedAt
                 )
-                .containsExactly(11, 7, "Keyboard", new BigDecimal("99.90"), LocalDateTime.of(2026, 1, 2, 3, 4));
+                .containsExactly(11, 7, "Keyboard", new BigDecimal("99.90"), OffsetDateTime.parse("2026-01-02T03:04:00+03:00"));
 
         ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Map<String, Object>> paramsCaptor = ArgumentCaptor.forClass(Map.class);
@@ -105,7 +105,7 @@ class OutboxEventRepositoryImplTest {
         order.setUserId(7);
         order.setProductName("Keyboard");
         order.setAmount(new BigDecimal("99.90"));
-        order.setCreatedAt(LocalDateTime.of(2026, 1, 2, 3, 4));
+        order.setCreatedAt(OffsetDateTime.parse("2026-01-02T03:04:00+03:00"));
         return order;
     }
 }

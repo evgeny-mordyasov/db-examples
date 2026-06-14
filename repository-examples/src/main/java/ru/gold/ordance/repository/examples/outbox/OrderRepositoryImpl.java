@@ -4,6 +4,7 @@ import org.springframework.jdbc.core.simple.JdbcClient;
 import ru.gold.ordance.jdbc.examples.common.Asserts;
 import ru.gold.ordance.jdbc.examples.common.db.model.Order;
 
+import java.time.OffsetDateTime;
 import java.util.Map;
 
 public class OrderRepositoryImpl implements OrderRepository {
@@ -35,7 +36,7 @@ public class OrderRepositoryImpl implements OrderRepository {
                     savedOrder.setUserId(rs.getInt("user_id"));
                     savedOrder.setProductName(rs.getString("product_name"));
                     savedOrder.setAmount(rs.getBigDecimal("amount"));
-                    savedOrder.setCreatedAt(rs.getTimestamp("created_at").toLocalDateTime());
+                    savedOrder.setCreatedAt(rs.getObject("created_at", OffsetDateTime.class));
                     return savedOrder;
                 })
                 .single();

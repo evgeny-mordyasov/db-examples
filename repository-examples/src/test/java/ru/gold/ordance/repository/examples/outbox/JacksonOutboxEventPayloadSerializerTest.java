@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test;
 import ru.gold.ordance.jdbc.examples.common.db.model.Order;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -32,7 +32,7 @@ class JacksonOutboxEventPayloadSerializerTest {
         String payload = serializer.serialize(order());
 
         assertThat(payload)
-                .isEqualTo("{\"orderId\":11,\"userId\":7,\"productName\":\"Keyboard\",\"amount\":99.90,\"createdAt\":\"2026-01-02T03:04:00\"}");
+                .isEqualTo("{\"orderId\":11,\"userId\":7,\"productName\":\"Keyboard\",\"amount\":99.90,\"createdAt\":\"2026-01-02T03:04:00+03:00\"}");
     }
 
     @Test
@@ -61,7 +61,7 @@ class JacksonOutboxEventPayloadSerializerTest {
         order.setUserId(7);
         order.setProductName("Keyboard");
         order.setAmount(new BigDecimal("99.90"));
-        order.setCreatedAt(LocalDateTime.of(2026, 1, 2, 3, 4));
+        order.setCreatedAt(OffsetDateTime.parse("2026-01-02T03:04:00+03:00"));
         return order;
     }
 }

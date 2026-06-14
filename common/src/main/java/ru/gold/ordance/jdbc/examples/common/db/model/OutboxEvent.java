@@ -1,6 +1,6 @@
 package ru.gold.ordance.jdbc.examples.common.db.model;
 
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 public class OutboxEvent {
@@ -10,8 +10,8 @@ public class OutboxEvent {
     private String aggregateId;
     private String eventType;
     private String payload;
-    private LocalDateTime createdAt;
-    private LocalDateTime processedAt;
+    private OffsetDateTime createdAt;
+    private OffsetDateTime processedAt;
 
     public UUID getEventId() {
         return eventId;
@@ -53,19 +53,19 @@ public class OutboxEvent {
         this.payload = payload;
     }
 
-    public LocalDateTime getCreatedAt() {
+    public OffsetDateTime getCreatedAt() {
         return createdAt;
     }
 
-    public void setCreatedAt(LocalDateTime createdAt) {
+    public void setCreatedAt(OffsetDateTime createdAt) {
         this.createdAt = createdAt;
     }
 
-    public LocalDateTime getProcessedAt() {
+    public OffsetDateTime getProcessedAt() {
         return processedAt;
     }
 
-    public void setProcessedAt(LocalDateTime processedAt) {
+    public void setProcessedAt(OffsetDateTime processedAt) {
         this.processedAt = processedAt;
     }
 

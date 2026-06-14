@@ -10,7 +10,7 @@ import org.springframework.transaction.support.TransactionTemplate;
 import ru.gold.ordance.jdbc.examples.common.db.model.Order;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -107,10 +107,10 @@ class OrderServiceTest {
     }
 
     private static Order savedOrder() {
-        return order(11, 7, "Keyboard", new BigDecimal("99.90"), LocalDateTime.of(2026, 1, 2, 3, 4));
+        return order(11, 7, "Keyboard", new BigDecimal("99.90"), OffsetDateTime.parse("2026-01-02T03:04:00+03:00"));
     }
 
-    private static Order order(int orderId, int userId, String productName, BigDecimal amount, LocalDateTime createdAt) {
+    private static Order order(int orderId, int userId, String productName, BigDecimal amount, OffsetDateTime createdAt) {
         Order order = new Order();
         order.setOrderId(orderId);
         order.setUserId(userId);

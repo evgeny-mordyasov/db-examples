@@ -11,8 +11,7 @@ import ru.gold.ordance.jdbc.examples.common.db.model.Order;
 
 import java.math.BigDecimal;
 import java.sql.ResultSet;
-import java.sql.Timestamp;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -42,7 +41,7 @@ class OrderRepositoryImplTest {
     void create_success() throws Exception {
         Order newOrder = order(0, 7, "Keyboard", new BigDecimal("99.90"), null);
         Order order = order(11, 7, "Keyboard", new BigDecimal("99.90"), null);
-        LocalDateTime createdAt = LocalDateTime.of(2026, 1, 2, 3, 4);
+        OffsetDateTime createdAt = OffsetDateTime.parse("2026-01-02T03:04:00+03:00");
         when(jdbc.sql(anyString())).thenReturn(statementSpec);
         when(statementSpec.params(anyMap())).thenReturn(statementSpec);
         when(statementSpec.query(any(RowMapper.class))).thenReturn(querySpec);
@@ -58,7 +57,7 @@ class OrderRepositoryImplTest {
         when(resultSet.getInt("user_id")).thenReturn(7);
         when(resultSet.getString("product_name")).thenReturn("Keyboard");
         when(resultSet.getBigDecimal("amount")).thenReturn(new BigDecimal("99.90"));
-        when(resultSet.getTimestamp("created_at")).thenReturn(Timestamp.valueOf(createdAt));
+        when(resultSet.getObject("created_at", OffsetDateTime.class)).thenReturn(createdAt);
         assertThat(mapperCaptor.getValue().mapRow(resultSet, 0))
                 .extracting(
                         Order::getOrderId,
@@ -83,7 +82,7 @@ class OrderRepositoryImplTest {
                 .containsEntry("amount", new BigDecimal("99.90"));
     }
 
-    private static Order order(int orderId, int userId, String productName, BigDecimal amount, LocalDateTime createdAt) {
+    private static Order order(int orderId, int userId, String productName, BigDecimal amount, OffsetDateTime createdAt) {
         Order order = new Order();
         order.setOrderId(orderId);
         order.setUserId(userId);
