@@ -8,6 +8,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import ru.gold.ordance.jdbc.examples.common.db.model.Order;
+import ru.gold.ordance.repository.examples.outbox.repository.OrderRepositoryImpl;
 
 import java.math.BigDecimal;
 import java.sql.ResultSet;

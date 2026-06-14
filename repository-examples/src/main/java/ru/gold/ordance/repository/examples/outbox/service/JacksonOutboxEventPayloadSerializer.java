@@ -1,4 +1,4 @@
-package ru.gold.ordance.repository.examples.outbox;
+package ru.gold.ordance.repository.examples.outbox.service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;

@@ -7,15 +7,15 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.support.TransactionTemplate;
-import ru.gold.ordance.repository.examples.outbox.JacksonOutboxEventPayloadSerializer;
-import ru.gold.ordance.repository.examples.outbox.LoggingOutboxEventConsumer;
-import ru.gold.ordance.repository.examples.outbox.OrderRepository;
-import ru.gold.ordance.repository.examples.outbox.OrderService;
-import ru.gold.ordance.repository.examples.outbox.OutboxEventConsumer;
-import ru.gold.ordance.repository.examples.outbox.OutboxEventPayloadSerializer;
-import ru.gold.ordance.repository.examples.outbox.OutboxEventRelay;
+import ru.gold.ordance.repository.examples.outbox.service.JacksonOutboxEventPayloadSerializer;
+import ru.gold.ordance.repository.examples.outbox.service.LoggingOutboxEventConsumer;
+import ru.gold.ordance.repository.examples.outbox.repository.OrderRepository;
+import ru.gold.ordance.repository.examples.outbox.service.OrderService;
+import ru.gold.ordance.repository.examples.outbox.service.OutboxEventConsumer;
+import ru.gold.ordance.repository.examples.outbox.service.OutboxEventPayloadSerializer;
+import ru.gold.ordance.repository.examples.outbox.service.OutboxEventRelay;
 import ru.gold.ordance.repository.examples.outbox.properties.OutboxEventRelayProperties;
-import ru.gold.ordance.repository.examples.outbox.OutboxEventRepository;
+import ru.gold.ordance.repository.examples.outbox.repository.OutboxEventRepository;
 
 import java.time.Clock;
 

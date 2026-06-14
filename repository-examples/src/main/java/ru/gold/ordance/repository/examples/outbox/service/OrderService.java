@@ -1,8 +1,10 @@
-package ru.gold.ordance.repository.examples.outbox;
+package ru.gold.ordance.repository.examples.outbox.service;
 
 import org.springframework.transaction.support.TransactionTemplate;
 import ru.gold.ordance.jdbc.examples.common.Asserts;
 import ru.gold.ordance.jdbc.examples.common.db.model.Order;
+import ru.gold.ordance.repository.examples.outbox.repository.OrderRepository;
+import ru.gold.ordance.repository.examples.outbox.repository.OutboxEventRepository;
 
 public class OrderService {
 

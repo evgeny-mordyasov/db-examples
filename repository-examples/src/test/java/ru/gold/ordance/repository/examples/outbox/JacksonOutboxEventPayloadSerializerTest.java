@@ -6,6 +6,8 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.junit.jupiter.api.Test;
 import ru.gold.ordance.jdbc.examples.common.db.model.Order;
+import ru.gold.ordance.repository.examples.outbox.service.JacksonOutboxEventPayloadSerializer;
+import ru.gold.ordance.repository.examples.outbox.service.OutboxEventPayloadSerializer;
 
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;

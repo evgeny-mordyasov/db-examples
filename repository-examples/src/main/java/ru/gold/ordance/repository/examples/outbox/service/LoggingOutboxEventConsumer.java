@@ -1,4 +1,4 @@
-package ru.gold.ordance.repository.examples.outbox;
+package ru.gold.ordance.repository.examples.outbox.service;
 
 import jakarta.annotation.Nonnull;
 import org.slf4j.Logger;
