@@ -141,7 +141,7 @@ class OutboxEventRepositoryImplTest {
         assertThat(sqlCaptor.getValue())
                 .contains("processed_at IS NULL")
                 .contains("next_attempt_at <= now()")
-                .contains("ORDER BY created_at")
+                .contains("ORDER BY created_at, event_id")
                 .contains("LIMIT :batchSize")
                 .contains("FOR UPDATE SKIP LOCKED");
         assertThat(events).singleElement()
