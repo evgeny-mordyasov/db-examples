@@ -35,7 +35,7 @@ public class OutboxEventRepositoryImpl implements OutboxEventRepository {
             FROM outbox_events
             WHERE processed_at IS NULL
               AND next_attempt_at <= now()
-            ORDER BY created_at
+            ORDER BY created_at, event_id
             LIMIT :batchSize
             FOR UPDATE SKIP LOCKED
             """;
