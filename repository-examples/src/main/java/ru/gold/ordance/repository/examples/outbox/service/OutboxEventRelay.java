@@ -32,40 +32,56 @@ public class OutboxEventRelay {
         this.properties = Asserts.nonNull(properties, "properties");
         Asserts.positive(properties.getMaxErrorLength(), "maxErrorLength");
         Asserts.nonNull(properties.getNextAttemptDelay(), "nextAttemptDelay");
+        Asserts.nonNull(properties.getProcessingTimeout(), "processingTimeout");
         this.clock = Asserts.nonNull(clock, "clock");
     }
 
     public PollResult pollBatch(int batchSize) {
         Asserts.positive(batchSize, "batchSize");
-        return transactionTemplate.execute(status -> processBatch(batchSize));
+        return processBatch(batchSize);
     }
 
     private PollResult processBatch(int batchSize) {
-        List<OutboxEvent> events = repository.findUnprocessedBatch(batchSize);
+        OffsetDateTime claimUntil = OffsetDateTime.now(clock).plus(properties.getProcessingTimeout());
+        List<OutboxEvent> events = transactionTemplate.execute(status -> repository.claimBatch(batchSize, claimUntil));
         int delivered = 0;
         int failed = 0;
 
         for (OutboxEvent event : events) {
             try {
                 consumer.accept(event);
-                repository.markProcessed(event.getEventId());
-                delivered++;
             } catch (RuntimeException e) {
-                repository.markFailed(
-                        event.getEventId(),
-                        truncate(e.getMessage()),
-                        nextAttemptAt(event)
-                );
+                markFailed(event, e);
                 failed++;
+                continue;
             }
+            markProcessed(event);
+            delivered++;
         }
 
         return new PollResult(events.size(), delivered, failed);
     }
 
+    private void markProcessed(OutboxEvent event) {
+        transactionTemplate.execute(status -> {
+            repository.markProcessed(event.getEventId());
+            return null;
+        });
+    }
+
+    private void markFailed(OutboxEvent event, RuntimeException e) {
+        transactionTemplate.execute(status -> {
+            repository.markFailed(
+                        event.getEventId(),
+                        truncate(e.getMessage()),
+                        nextAttemptAt(event)
+                );
+            return null;
+        });
+    }
+
     private OffsetDateTime nextAttemptAt(OutboxEvent event) {
-        long nextAttemptNumber = event.getAttemptCount() + 1L;
-        Duration delay = properties.getNextAttemptDelay().multipliedBy(nextAttemptNumber);
+        Duration delay = properties.getNextAttemptDelay().multipliedBy(event.getAttemptCount());
         return OffsetDateTime.now(clock).plus(delay);
     }
 

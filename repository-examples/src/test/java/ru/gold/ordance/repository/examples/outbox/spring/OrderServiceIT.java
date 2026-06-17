@@ -24,7 +24,9 @@ import java.time.Duration;
 import java.time.Instant;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -79,12 +81,20 @@ class OrderServiceIT {
         assertThat(result).isEqualTo(new OutboxEventRelay.PollResult(1, 1, 0));
         assertThat(unprocessedEventCount()).isZero();
         assertThat(jdbc.sql("""
-                        SELECT processed_at IS NOT NULL
+                        SELECT status,
+                               processed_at IS NOT NULL AS processed,
+                               claimed_at,
+                               claim_until
                         FROM outbox_events
                         """)
-                .query(Boolean.class)
+                .query((rs, rowNum) -> new ProcessedRow(
+                        rs.getString("status"),
+                        rs.getBoolean("processed"),
+                        rs.getObject("claimed_at", OffsetDateTime.class),
+                        rs.getObject("claim_until", OffsetDateTime.class)
+                ))
                 .single())
-                .isTrue();
+                .isEqualTo(new ProcessedRow("PROCESSED", true, null, null));
     }
 
     @Test
@@ -104,24 +114,90 @@ class OrderServiceIT {
         OutboxEventRelay.PollResult result = failingRelay.pollBatch(10);
 
         assertThat(result).isEqualTo(new OutboxEventRelay.PollResult(1, 0, 1));
-        RetryRow row = jdbc.sql("""
+        Map<String, Object> row = jdbc.sql("""
                         SELECT processed_at,
+                               status,
                                attempt_count,
                                last_error,
-                               next_attempt_at
+                               next_attempt_at,
+                               claimed_at,
+                               claim_until
                         FROM outbox_events
                         """)
-                .query((rs, rowNum) -> new RetryRow(
-                        rs.getObject("processed_at", OffsetDateTime.class),
-                        rs.getInt("attempt_count"),
-                        rs.getString("last_error"),
-                        rs.getObject("next_attempt_at", OffsetDateTime.class)
+                .query((rs, rowNum) -> {
+                    Map<String, Object> values = new LinkedHashMap<>();
+                    values.put("processed_at", rs.getObject("processed_at", OffsetDateTime.class));
+                    values.put("status", rs.getString("status"));
+                    values.put("attempt_count", rs.getInt("attempt_count"));
+                    values.put("last_error", rs.getString("last_error"));
+                    values.put("next_attempt_at", rs.getObject("next_attempt_at", OffsetDateTime.class));
+                    values.put("claimed_at", rs.getObject("claimed_at", OffsetDateTime.class));
+                    values.put("claim_until", rs.getObject("claim_until", OffsetDateTime.class));
+                    return values;
+                })
+                .single();
+        assertThat(row)
+                .containsEntry("status", "FAILED")
+                .containsEntry("attempt_count", 1)
+                .containsEntry("last_error", "Consumer failed")
+                .containsEntry("next_attempt_at", OffsetDateTime.parse("2026-01-02T03:04:01Z"));
+        assertThat(row.get("processed_at")).isNull();
+        assertThat(row.get("claimed_at")).isNull();
+        assertThat(row.get("claim_until")).isNull();
+    }
+
+    @Test
+    void outboxRelay_commitsClaimBeforeConsumerRuns() {
+        service.createOrder(newOrder());
+        Clock clock = Clock.fixed(Instant.parse("2026-01-02T03:04:00Z"), ZoneOffset.UTC);
+        OutboxEventRelay relay = new OutboxEventRelay(
+                tx,
+                outboxEventRepository,
+                event -> assertThat(jdbc.sql("""
+                                SELECT status
+                                FROM outbox_events
+                                WHERE event_id = :eventId
+                                """)
+                        .param("eventId", event.getEventId())
+                        .query(String.class)
+                        .single())
+                        .isEqualTo("PROCESSING"),
+                properties(500, Duration.ofSeconds(1)),
+                clock
+        );
+
+        OutboxEventRelay.PollResult result = relay.pollBatch(10);
+
+        assertThat(result).isEqualTo(new OutboxEventRelay.PollResult(1, 1, 0));
+    }
+
+    @Test
+    void outboxRelay_reclaimsExpiredProcessingEvent() {
+        service.createOrder(newOrder());
+        jdbc.sql("""
+                        UPDATE outbox_events
+                        SET status = 'PROCESSING',
+                            claimed_at = now() - interval '1 minute',
+                            claim_until = now() - interval '1 second',
+                            attempt_count = 1
+                        """)
+                .update();
+
+        OutboxEventRelay.PollResult result = outboxEventRelay.pollBatch(10);
+
+        assertThat(result).isEqualTo(new OutboxEventRelay.PollResult(1, 1, 0));
+        Map<String, Object> row = jdbc.sql("""
+                        SELECT status, attempt_count
+                        FROM outbox_events
+                        """)
+                .query((rs, rowNum) -> Map.<String, Object>of(
+                        "status", rs.getString("status"),
+                        "attempt_count", rs.getInt("attempt_count")
                 ))
                 .single();
-        assertThat(row.processedAt()).isNull();
-        assertThat(row.attemptCount()).isEqualTo(1);
-        assertThat(row.lastError()).isEqualTo("Consumer failed");
-        assertThat(row.nextAttemptAt()).isEqualTo(OffsetDateTime.parse("2026-01-02T03:04:01Z"));
+        assertThat(row)
+                .containsEntry("status", "PROCESSED")
+                .containsEntry("attempt_count", 2);
     }
 
     @Test
@@ -171,8 +247,8 @@ class OrderServiceIT {
             }
 
             @Override
-            public List<OutboxEvent> findUnprocessedBatch(int batchSize) {
-                return outboxEventRepository.findUnprocessedBatch(batchSize);
+            public List<OutboxEvent> claimBatch(int batchSize, OffsetDateTime claimUntil) {
+                return outboxEventRepository.claimBatch(batchSize, claimUntil);
             }
 
             @Override
@@ -199,17 +275,18 @@ class OrderServiceIT {
         OutboxEventRelayProperties properties = new OutboxEventRelayProperties();
         properties.setMaxErrorLength(maxErrorLength);
         properties.setNextAttemptDelay(nextAttemptDelay);
+        properties.setProcessingTimeout(Duration.ofSeconds(30));
         return properties;
     }
 
     private record OutboxEventRow(String aggregateType, String aggregateId, String eventType) {
     }
 
-    private record RetryRow(
-            OffsetDateTime processedAt,
-            int attemptCount,
-            String lastError,
-            OffsetDateTime nextAttemptAt
+    private record ProcessedRow(
+            String status,
+            boolean processed,
+            OffsetDateTime claimedAt,
+            OffsetDateTime claimUntil
     ) {
     }
 }

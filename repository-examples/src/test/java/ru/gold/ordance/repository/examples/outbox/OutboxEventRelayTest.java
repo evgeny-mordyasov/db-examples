@@ -57,10 +57,10 @@ class OutboxEventRelayTest {
 
     @Test
     void pollBatch_successAndFailure() {
-        OutboxEvent success = event("7a2517f2-e651-4569-9f96-ac09f8b64f9a", 0);
-        OutboxEvent failure = event("23eb899d-ddf1-4687-a6fe-8231dbf5f383", 1);
+        OutboxEvent success = event("7a2517f2-e651-4569-9f96-ac09f8b64f9a", 1);
+        OutboxEvent failure = event("23eb899d-ddf1-4687-a6fe-8231dbf5f383", 2);
         stubTransaction();
-        when(repository.findUnprocessedBatch(10)).thenReturn(List.of(success, failure));
+        when(repository.claimBatch(10, OffsetDateTime.parse("2026-01-02T03:04:30Z"))).thenReturn(List.of(success, failure));
         failForEvent(failure, "Delivery timeout");
 
         OutboxEventRelay relay = newRelay(tx);
@@ -70,7 +70,7 @@ class OutboxEventRelayTest {
         assertThat(result.fetched()).isEqualTo(2);
         assertThat(result.delivered()).isEqualTo(1);
         assertThat(result.failed()).isEqualTo(1);
-        verify(repository).findUnprocessedBatch(10);
+        verify(repository).claimBatch(10, OffsetDateTime.parse("2026-01-02T03:04:30Z"));
         verify(consumer).accept(success);
         verify(consumer).accept(failure);
         verify(repository).markProcessed(success.getEventId());
@@ -83,9 +83,9 @@ class OutboxEventRelayTest {
 
     @Test
     void pollBatch_truncatesLongError() {
-        OutboxEvent failure = event("23eb899d-ddf1-4687-a6fe-8231dbf5f383", 0);
+        OutboxEvent failure = event("23eb899d-ddf1-4687-a6fe-8231dbf5f383", 1);
         stubTransaction();
-        when(repository.findUnprocessedBatch(1)).thenReturn(List.of(failure));
+        when(repository.claimBatch(1, OffsetDateTime.parse("2026-01-02T03:04:30Z"))).thenReturn(List.of(failure));
         failForEvent(failure, "x".repeat(600));
 
         OutboxEventRelay relay = newRelay(tx);
@@ -103,9 +103,9 @@ class OutboxEventRelayTest {
 
     @Test
     void pollBatch_usesConfiguredMaxErrorLength() {
-        OutboxEvent failure = event("23eb899d-ddf1-4687-a6fe-8231dbf5f383", 0);
+        OutboxEvent failure = event("23eb899d-ddf1-4687-a6fe-8231dbf5f383", 1);
         stubTransaction();
-        when(repository.findUnprocessedBatch(1)).thenReturn(List.of(failure));
+        when(repository.claimBatch(1, OffsetDateTime.parse("2026-01-02T03:04:30Z"))).thenReturn(List.of(failure));
         failForEvent(failure, "x".repeat(50));
 
         OutboxEventRelay relay = new OutboxEventRelay(
@@ -129,9 +129,9 @@ class OutboxEventRelayTest {
 
     @Test
     void pollBatch_usesConfiguredNextAttemptDelay() {
-        OutboxEvent failure = event("23eb899d-ddf1-4687-a6fe-8231dbf5f383", 1);
+        OutboxEvent failure = event("23eb899d-ddf1-4687-a6fe-8231dbf5f383", 2);
         stubTransaction();
-        when(repository.findUnprocessedBatch(1)).thenReturn(List.of(failure));
+        when(repository.claimBatch(1, OffsetDateTime.parse("2026-01-02T03:04:30Z"))).thenReturn(List.of(failure));
         failForEvent(failure, "Delivery timeout");
 
         OutboxEventRelay relay = new OutboxEventRelay(
@@ -151,10 +151,28 @@ class OutboxEventRelayTest {
         );
     }
 
+    @Test
+    void pollBatch_usesConfiguredProcessingTimeout() {
+        stubTransaction();
+        when(repository.claimBatch(1, OffsetDateTime.parse("2026-01-02T03:04:05Z"))).thenReturn(List.of());
+
+        OutboxEventRelay relay = new OutboxEventRelay(
+                tx,
+                repository,
+                consumer,
+                properties(500, Duration.ofSeconds(1), Duration.ofSeconds(5)),
+                clock
+        );
+
+        relay.pollBatch(1);
+
+        verify(repository).claimBatch(1, OffsetDateTime.parse("2026-01-02T03:04:05Z"));
+    }
+
     @SuppressWarnings("unchecked")
     private void stubTransaction() {
         doAnswer(invocation -> {
-            TransactionCallback<OutboxEventRelay.PollResult> callback = invocation.getArgument(0);
+            TransactionCallback<Object> callback = invocation.getArgument(0);
             return callback.doInTransaction(null);
         }).when(tx).execute(any(TransactionCallback.class));
     }
@@ -183,6 +201,17 @@ class OutboxEventRelayTest {
         OutboxEventRelayProperties properties = new OutboxEventRelayProperties();
         properties.setMaxErrorLength(maxErrorLength);
         properties.setNextAttemptDelay(nextAttemptDelay);
+        properties.setProcessingTimeout(Duration.ofSeconds(30));
+        return properties;
+    }
+
+    private static OutboxEventRelayProperties properties(
+            int maxErrorLength,
+            Duration nextAttemptDelay,
+            Duration processingTimeout
+    ) {
+        OutboxEventRelayProperties properties = properties(maxErrorLength, nextAttemptDelay);
+        properties.setProcessingTimeout(processingTimeout);
         return properties;
     }
 
