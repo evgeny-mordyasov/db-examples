@@ -61,6 +61,13 @@ class OutboxEventRelayTest {
         OutboxEvent failure = event("23eb899d-ddf1-4687-a6fe-8231dbf5f383", 2);
         stubTransaction();
         when(repository.claimBatch(10, OffsetDateTime.parse("2026-01-02T03:04:30Z"))).thenReturn(List.of(success, failure));
+        when(repository.markProcessed(success.getEventId(), success.getClaimUntil())).thenReturn(true);
+        when(repository.markFailed(
+                failure.getEventId(),
+                failure.getClaimUntil(),
+                "Delivery timeout",
+                OffsetDateTime.parse("2026-01-02T03:04:02Z")
+        )).thenReturn(true);
         failForEvent(failure, "Delivery timeout");
 
         OutboxEventRelay relay = newRelay(tx);
@@ -73,9 +80,10 @@ class OutboxEventRelayTest {
         verify(repository).claimBatch(10, OffsetDateTime.parse("2026-01-02T03:04:30Z"));
         verify(consumer).accept(success);
         verify(consumer).accept(failure);
-        verify(repository).markProcessed(success.getEventId());
+        verify(repository).markProcessed(success.getEventId(), success.getClaimUntil());
         verify(repository).markFailed(
                 failure.getEventId(),
+                failure.getClaimUntil(),
                 "Delivery timeout",
                 OffsetDateTime.parse("2026-01-02T03:04:02Z")
         );
@@ -86,6 +94,12 @@ class OutboxEventRelayTest {
         OutboxEvent failure = event("23eb899d-ddf1-4687-a6fe-8231dbf5f383", 1);
         stubTransaction();
         when(repository.claimBatch(1, OffsetDateTime.parse("2026-01-02T03:04:30Z"))).thenReturn(List.of(failure));
+        when(repository.markFailed(
+                any(UUID.class),
+                any(OffsetDateTime.class),
+                any(String.class),
+                any(OffsetDateTime.class)
+        )).thenReturn(true);
         failForEvent(failure, "x".repeat(600));
 
         OutboxEventRelay relay = newRelay(tx);
@@ -95,6 +109,7 @@ class OutboxEventRelayTest {
         ArgumentCaptor<String> errorCaptor = ArgumentCaptor.forClass(String.class);
         verify(repository).markFailed(
                 any(UUID.class),
+                any(OffsetDateTime.class),
                 errorCaptor.capture(),
                 any(OffsetDateTime.class)
         );
@@ -106,6 +121,12 @@ class OutboxEventRelayTest {
         OutboxEvent failure = event("23eb899d-ddf1-4687-a6fe-8231dbf5f383", 1);
         stubTransaction();
         when(repository.claimBatch(1, OffsetDateTime.parse("2026-01-02T03:04:30Z"))).thenReturn(List.of(failure));
+        when(repository.markFailed(
+                any(UUID.class),
+                any(OffsetDateTime.class),
+                any(String.class),
+                any(OffsetDateTime.class)
+        )).thenReturn(true);
         failForEvent(failure, "x".repeat(50));
 
         OutboxEventRelay relay = new OutboxEventRelay(
@@ -121,6 +142,7 @@ class OutboxEventRelayTest {
         ArgumentCaptor<String> errorCaptor = ArgumentCaptor.forClass(String.class);
         verify(repository).markFailed(
                 any(UUID.class),
+                any(OffsetDateTime.class),
                 errorCaptor.capture(),
                 any(OffsetDateTime.class)
         );
@@ -132,6 +154,12 @@ class OutboxEventRelayTest {
         OutboxEvent failure = event("23eb899d-ddf1-4687-a6fe-8231dbf5f383", 2);
         stubTransaction();
         when(repository.claimBatch(1, OffsetDateTime.parse("2026-01-02T03:04:30Z"))).thenReturn(List.of(failure));
+        when(repository.markFailed(
+                failure.getEventId(),
+                failure.getClaimUntil(),
+                "Delivery timeout",
+                OffsetDateTime.parse("2026-01-02T03:08:00Z")
+        )).thenReturn(true);
         failForEvent(failure, "Delivery timeout");
 
         OutboxEventRelay relay = new OutboxEventRelay(
@@ -146,9 +174,25 @@ class OutboxEventRelayTest {
 
         verify(repository).markFailed(
                 failure.getEventId(),
+                failure.getClaimUntil(),
                 "Delivery timeout",
                 OffsetDateTime.parse("2026-01-02T03:08:00Z")
         );
+    }
+
+    @Test
+    void pollBatch_staleProcessedUpdate_shouldNotCountDelivered() {
+        OutboxEvent stale = event("7a2517f2-e651-4569-9f96-ac09f8b64f9a", 1);
+        stubTransaction();
+        when(repository.claimBatch(1, OffsetDateTime.parse("2026-01-02T03:04:30Z"))).thenReturn(List.of(stale));
+        when(repository.markProcessed(stale.getEventId(), stale.getClaimUntil())).thenReturn(false);
+
+        OutboxEventRelay relay = newRelay(tx);
+
+        OutboxEventRelay.PollResult result = relay.pollBatch(1);
+
+        assertThat(result).isEqualTo(new OutboxEventRelay.PollResult(1, 0, 0));
+        verify(repository).markProcessed(stale.getEventId(), stale.getClaimUntil());
     }
 
     @Test
@@ -223,6 +267,7 @@ class OutboxEventRelayTest {
         event.setEventType("OrderCreated");
         event.setPayload("{\"orderId\":11}");
         event.setAttemptCount(attemptCount);
+        event.setClaimUntil(OffsetDateTime.parse("2026-01-02T03:04:30Z"));
         return event;
     }
 }

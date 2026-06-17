@@ -201,6 +201,34 @@ class OrderServiceIT {
     }
 
     @Test
+    void outboxRepository_staleClaim_doesNotOverwriteReclaimedEvent() {
+        service.createOrder(newOrder());
+        OffsetDateTime oldClaimUntil = OffsetDateTime.parse("2026-01-02T03:05:00Z");
+        OffsetDateTime newClaimUntil = OffsetDateTime.parse("2030-01-02T03:05:00Z");
+        OutboxEvent firstClaim = outboxEventRepository.claimBatch(1, oldClaimUntil).getFirst();
+        OutboxEvent secondClaim = outboxEventRepository.claimBatch(1, newClaimUntil).getFirst();
+
+        boolean updated = outboxEventRepository.markProcessed(firstClaim.getEventId(), firstClaim.getClaimUntil());
+
+        assertThat(updated).isFalse();
+        assertThat(firstClaim.getClaimUntil()).isEqualTo(oldClaimUntil);
+        assertThat(secondClaim.getClaimUntil()).isEqualTo(newClaimUntil);
+        assertThat(jdbc.sql("""
+                        SELECT status, claim_until
+                        FROM outbox_events
+                        WHERE event_id = :eventId
+                        """)
+                .param("eventId", firstClaim.getEventId())
+                .query((rs, rowNum) -> Map.<String, Object>of(
+                        "status", rs.getString("status"),
+                        "claim_until", rs.getObject("claim_until", OffsetDateTime.class)
+                ))
+                .single())
+                .containsEntry("status", "PROCESSING")
+                .containsEntry("claim_until", newClaimUntil);
+    }
+
+    @Test
     void createOrder_rollsBackOrderAndOutboxEvent_whenFailureAfterOutboxInsert() {
         RuntimeException error = new RuntimeException("Simulated failure after outbox insert");
         OrderService failingService = new OrderService(
@@ -252,13 +280,13 @@ class OrderServiceIT {
             }
 
             @Override
-            public void markProcessed(UUID eventId) {
-                outboxEventRepository.markProcessed(eventId);
+            public boolean markProcessed(UUID eventId, OffsetDateTime claimUntil) {
+                return outboxEventRepository.markProcessed(eventId, claimUntil);
             }
 
             @Override
-            public void markFailed(UUID eventId, String lastError, OffsetDateTime nextAttemptAt) {
-                outboxEventRepository.markFailed(eventId, lastError, nextAttemptAt);
+            public boolean markFailed(UUID eventId, OffsetDateTime claimUntil, String lastError, OffsetDateTime nextAttemptAt) {
+                return outboxEventRepository.markFailed(eventId, claimUntil, lastError, nextAttemptAt);
             }
         };
     }

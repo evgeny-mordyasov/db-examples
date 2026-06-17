@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 import ru.gold.ordance.jdbc.examples.common.db.model.Order;
 import ru.gold.ordance.repository.examples.outbox.service.JacksonOutboxEventPayloadSerializer;
 import ru.gold.ordance.repository.examples.outbox.service.OutboxEventPayloadSerializer;
@@ -16,6 +17,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class JacksonOutboxEventPayloadSerializerTest {
@@ -38,11 +40,24 @@ class JacksonOutboxEventPayloadSerializerTest {
     }
 
     @Test
+    void serialize_success_usesOrderCreatedEventPayload() throws Exception {
+        ObjectMapper objectMapper = mock(ObjectMapper.class);
+        when(objectMapper.writeValueAsString(any())).thenReturn("{}");
+        OutboxEventPayloadSerializer serializer = new JacksonOutboxEventPayloadSerializer(objectMapper);
+
+        serializer.serialize(order());
+
+        ArgumentCaptor<Object> payloadCaptor = ArgumentCaptor.forClass(Object.class);
+        verify(objectMapper).writeValueAsString(payloadCaptor.capture());
+        assertThat(payloadCaptor.getValue().getClass().getSimpleName()).isEqualTo("OrderCreatedEvent");
+    }
+
+    @Test
     void serialize_failed() throws Exception {
         ObjectMapper objectMapper = mock(ObjectMapper.class);
         JsonProcessingException error = new JsonProcessingException("Simulated error") {
         };
-        when(objectMapper.writeValueAsString(any(Order.class))).thenThrow(error);
+        when(objectMapper.writeValueAsString(any())).thenThrow(error);
         OutboxEventPayloadSerializer serializer = new JacksonOutboxEventPayloadSerializer(objectMapper);
 
         assertThatThrownBy(() -> serializer.serialize(order()))

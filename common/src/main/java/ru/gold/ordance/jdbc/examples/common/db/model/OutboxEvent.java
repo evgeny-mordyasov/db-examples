@@ -12,6 +12,9 @@ public class OutboxEvent {
     private String payload;
     private OffsetDateTime createdAt;
     private OffsetDateTime processedAt;
+    private String status;
+    private OffsetDateTime claimedAt;
+    private OffsetDateTime claimUntil;
     private int attemptCount;
     private String lastError;
     private OffsetDateTime nextAttemptAt;
@@ -72,6 +75,30 @@ public class OutboxEvent {
         this.processedAt = processedAt;
     }
 
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public OffsetDateTime getClaimedAt() {
+        return claimedAt;
+    }
+
+    public void setClaimedAt(OffsetDateTime claimedAt) {
+        this.claimedAt = claimedAt;
+    }
+
+    public OffsetDateTime getClaimUntil() {
+        return claimUntil;
+    }
+
+    public void setClaimUntil(OffsetDateTime claimUntil) {
+        this.claimUntil = claimUntil;
+    }
+
     public int getAttemptCount() {
         return attemptCount;
     }
@@ -106,6 +133,9 @@ public class OutboxEvent {
                 ", payload='" + payload + '\'' +
                 ", createdAt=" + createdAt +
                 ", processedAt=" + processedAt +
+                ", status='" + status + '\'' +
+                ", claimedAt=" + claimedAt +
+                ", claimUntil=" + claimUntil +
                 ", attemptCount=" + attemptCount +
                 ", lastError='" + lastError + '\'' +
                 ", nextAttemptAt=" + nextAttemptAt +

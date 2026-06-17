@@ -120,6 +120,9 @@ class OutboxEventRepositoryImplTest {
         when(rs.getString("payload")).thenReturn("{\"orderId\":11}");
         when(rs.getObject("created_at", OffsetDateTime.class)).thenReturn(OffsetDateTime.parse("2026-01-02T03:04:00+03:00"));
         when(rs.getObject("processed_at", OffsetDateTime.class)).thenReturn(null);
+        when(rs.getString("status")).thenReturn("PROCESSING");
+        when(rs.getObject("claimed_at", OffsetDateTime.class)).thenReturn(OffsetDateTime.parse("2026-01-02T03:04:00+03:00"));
+        when(rs.getObject("claim_until", OffsetDateTime.class)).thenReturn(claimUntil);
         when(rs.getInt("attempt_count")).thenReturn(1);
         when(rs.getString("last_error")).thenReturn(null);
         when(rs.getObject("next_attempt_at", OffsetDateTime.class)).thenReturn(OffsetDateTime.parse("2026-01-02T03:06:00+03:00"));
@@ -144,6 +147,9 @@ class OutboxEventRepositoryImplTest {
                 .contains("RETURNING")
                 .contains("status = 'PROCESSING'")
                 .contains("attempt_count = attempt_count + 1")
+                .contains("event.status")
+                .contains("event.claimed_at")
+                .contains("event.claim_until")
                 .contains("processed_at IS NULL")
                 .contains("status IN ('PENDING', 'FAILED') AND next_attempt_at <= now()")
                 .contains("status = 'PROCESSING' AND claim_until <= now()")
@@ -159,6 +165,9 @@ class OutboxEventRepositoryImplTest {
                     assertThat(event.getPayload()).isEqualTo("{\"orderId\":11}");
                     assertThat(event.getCreatedAt()).isEqualTo(OffsetDateTime.parse("2026-01-02T03:04:00+03:00"));
                     assertThat(event.getProcessedAt()).isNull();
+                    assertThat(event.getStatus()).isEqualTo("PROCESSING");
+                    assertThat(event.getClaimedAt()).isEqualTo(OffsetDateTime.parse("2026-01-02T03:04:00+03:00"));
+                    assertThat(event.getClaimUntil()).isEqualTo(claimUntil);
                     assertThat(event.getAttemptCount()).isEqualTo(1);
                     assertThat(event.getLastError()).isNull();
                     assertThat(event.getNextAttemptAt()).isEqualTo(OffsetDateTime.parse("2026-01-02T03:06:00+03:00"));
@@ -168,41 +177,63 @@ class OutboxEventRepositoryImplTest {
     @Test
     void markProcessed_success() {
         UUID eventId = UUID.fromString("7a2517f2-e651-4569-9f96-ac09f8b64f9a");
+        OffsetDateTime claimUntil = OffsetDateTime.parse("2026-01-02T03:05:00+03:00");
         when(jdbc.sql(anyString())).thenReturn(statementSpec);
         when(statementSpec.param("eventId", eventId)).thenReturn(statementSpec);
+        when(statementSpec.param("claimUntil", claimUntil)).thenReturn(statementSpec);
         when(statementSpec.update()).thenReturn(1);
 
         OutboxEventRepository repository = new OutboxEventRepositoryImpl(jdbc, payloadSerializer);
 
-        repository.markProcessed(eventId);
+        boolean updated = repository.markProcessed(eventId, claimUntil);
 
         ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
         verify(jdbc).sql(sqlCaptor.capture());
+        assertThat(updated).isTrue();
         assertThat(sqlCaptor.getValue())
                 .contains("status = 'PROCESSED'")
                 .contains("processed_at = now()")
                 .contains("last_error = NULL")
                 .contains("claimed_at = NULL")
                 .contains("claim_until = NULL")
-                .contains("WHERE event_id = :eventId");
+                .contains("WHERE event_id = :eventId")
+                .contains("AND status = 'PROCESSING'")
+                .contains("AND claim_until = :claimUntil");
+    }
+
+    @Test
+    void markProcessed_staleClaim_returnFalse() {
+        UUID eventId = UUID.fromString("7a2517f2-e651-4569-9f96-ac09f8b64f9a");
+        OffsetDateTime claimUntil = OffsetDateTime.parse("2026-01-02T03:05:00+03:00");
+        when(jdbc.sql(anyString())).thenReturn(statementSpec);
+        when(statementSpec.param("eventId", eventId)).thenReturn(statementSpec);
+        when(statementSpec.param("claimUntil", claimUntil)).thenReturn(statementSpec);
+        when(statementSpec.update()).thenReturn(0);
+
+        OutboxEventRepository repository = new OutboxEventRepositoryImpl(jdbc, payloadSerializer);
+
+        assertThat(repository.markProcessed(eventId, claimUntil)).isFalse();
     }
 
     @Test
     void markFailed_success() {
         UUID eventId = UUID.fromString("7a2517f2-e651-4569-9f96-ac09f8b64f9a");
+        OffsetDateTime claimUntil = OffsetDateTime.parse("2026-01-02T03:05:00+03:00");
         OffsetDateTime nextAttemptAt = OffsetDateTime.parse("2026-01-02T03:06:00+03:00");
         when(jdbc.sql(anyString())).thenReturn(statementSpec);
         when(statementSpec.param("eventId", eventId)).thenReturn(statementSpec);
+        when(statementSpec.param("claimUntil", claimUntil)).thenReturn(statementSpec);
         when(statementSpec.param("lastError", "Timeout")).thenReturn(statementSpec);
         when(statementSpec.param("nextAttemptAt", nextAttemptAt)).thenReturn(statementSpec);
         when(statementSpec.update()).thenReturn(1);
 
         OutboxEventRepository repository = new OutboxEventRepositoryImpl(jdbc, payloadSerializer);
 
-        repository.markFailed(eventId, "Timeout", nextAttemptAt);
+        boolean updated = repository.markFailed(eventId, claimUntil, "Timeout", nextAttemptAt);
 
         ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
         verify(jdbc).sql(sqlCaptor.capture());
+        assertThat(updated).isTrue();
         assertThat(sqlCaptor.getValue())
                 .contains("status = 'FAILED'")
                 .doesNotContain("attempt_count = attempt_count + 1")
@@ -210,7 +241,9 @@ class OutboxEventRepositoryImplTest {
                 .contains("next_attempt_at = :nextAttemptAt")
                 .contains("claimed_at = NULL")
                 .contains("claim_until = NULL")
-                .contains("WHERE event_id = :eventId");
+                .contains("WHERE event_id = :eventId")
+                .contains("AND status = 'PROCESSING'")
+                .contains("AND claim_until = :claimUntil");
     }
 
     private static Order order() {

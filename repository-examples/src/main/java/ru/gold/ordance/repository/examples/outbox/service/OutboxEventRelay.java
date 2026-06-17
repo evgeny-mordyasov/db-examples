@@ -51,33 +51,30 @@ public class OutboxEventRelay {
             try {
                 consumer.accept(event);
             } catch (RuntimeException e) {
-                markFailed(event, e);
-                failed++;
+                if (markFailed(event, e)) {
+                    failed++;
+                }
                 continue;
             }
-            markProcessed(event);
-            delivered++;
+            if (markProcessed(event)) {
+                delivered++;
+            }
         }
 
         return new PollResult(events.size(), delivered, failed);
     }
 
-    private void markProcessed(OutboxEvent event) {
-        transactionTemplate.execute(status -> {
-            repository.markProcessed(event.getEventId());
-            return null;
-        });
+    private boolean markProcessed(OutboxEvent event) {
+        return transactionTemplate.execute(status -> repository.markProcessed(event.getEventId(), event.getClaimUntil()));
     }
 
-    private void markFailed(OutboxEvent event, RuntimeException e) {
-        transactionTemplate.execute(status -> {
-            repository.markFailed(
+    private boolean markFailed(OutboxEvent event, RuntimeException e) {
+        return transactionTemplate.execute(status -> repository.markFailed(
                         event.getEventId(),
+                        event.getClaimUntil(),
                         truncate(e.getMessage()),
                         nextAttemptAt(event)
-                );
-            return null;
-        });
+                ));
     }
 
     private OffsetDateTime nextAttemptAt(OutboxEvent event) {

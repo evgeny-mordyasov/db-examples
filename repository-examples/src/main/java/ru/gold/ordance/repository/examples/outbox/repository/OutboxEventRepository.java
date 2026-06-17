@@ -13,7 +13,7 @@ public interface OutboxEventRepository {
 
     List<OutboxEvent> claimBatch(int batchSize, OffsetDateTime claimUntil);
 
-    void markProcessed(UUID eventId);
+    boolean markProcessed(UUID eventId, OffsetDateTime claimUntil);
 
-    void markFailed(UUID eventId, String lastError, OffsetDateTime nextAttemptAt);
+    boolean markFailed(UUID eventId, OffsetDateTime claimUntil, String lastError, OffsetDateTime nextAttemptAt);
 }

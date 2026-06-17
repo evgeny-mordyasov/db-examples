@@ -5,6 +5,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import ru.gold.ordance.jdbc.examples.common.Asserts;
 import ru.gold.ordance.jdbc.examples.common.db.model.Order;
 
+import java.math.BigDecimal;
+import java.time.OffsetDateTime;
+
 public class JacksonOutboxEventPayloadSerializer implements OutboxEventPayloadSerializer {
 
     private final ObjectMapper objectMapper;
@@ -16,9 +19,28 @@ public class JacksonOutboxEventPayloadSerializer implements OutboxEventPayloadSe
     @Override
     public String serialize(Order order) {
         try {
-            return objectMapper.writeValueAsString(order);
+            return objectMapper.writeValueAsString(OrderCreatedEvent.from(order));
         } catch (JsonProcessingException e) {
             throw new IllegalStateException("Failed to serialize outbox event payload.", e);
         }
+    }
+}
+
+record OrderCreatedEvent(
+        int orderId,
+        int userId,
+        String productName,
+        BigDecimal amount,
+        OffsetDateTime createdAt
+) {
+
+    static OrderCreatedEvent from(Order order) {
+        return new OrderCreatedEvent(
+                order.getOrderId(),
+                order.getUserId(),
+                order.getProductName(),
+                order.getAmount(),
+                order.getCreatedAt()
+        );
     }
 }

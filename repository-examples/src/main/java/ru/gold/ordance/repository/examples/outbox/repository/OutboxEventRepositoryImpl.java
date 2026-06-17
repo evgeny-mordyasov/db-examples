@@ -49,6 +49,9 @@ public class OutboxEventRepositoryImpl implements OutboxEventRepository {
                       event.payload::text AS payload,
                       event.created_at,
                       event.processed_at,
+                      event.status,
+                      event.claimed_at,
+                      event.claim_until,
                       event.attempt_count,
                       event.last_error,
                       event.next_attempt_at
@@ -62,6 +65,8 @@ public class OutboxEventRepositoryImpl implements OutboxEventRepository {
                 claimed_at = NULL,
                 claim_until = NULL
             WHERE event_id = :eventId
+              AND status = 'PROCESSING'
+              AND claim_until = :claimUntil
             """;
 
     private static final String MARK_FAILED = """
@@ -72,6 +77,8 @@ public class OutboxEventRepositoryImpl implements OutboxEventRepository {
                 claimed_at = NULL,
                 claim_until = NULL
             WHERE event_id = :eventId
+              AND status = 'PROCESSING'
+              AND claim_until = :claimUntil
             """;
 
     private final JdbcClient jdbc;
@@ -109,19 +116,21 @@ public class OutboxEventRepositoryImpl implements OutboxEventRepository {
     }
 
     @Override
-    public void markProcessed(UUID eventId) {
-        jdbc.sql(MARK_PROCESSED)
+    public boolean markProcessed(UUID eventId, OffsetDateTime claimUntil) {
+        return jdbc.sql(MARK_PROCESSED)
                 .param("eventId", eventId)
-                .update();
+                .param("claimUntil", claimUntil)
+                .update() == 1;
     }
 
     @Override
-    public void markFailed(UUID eventId, String lastError, OffsetDateTime nextAttemptAt) {
-        jdbc.sql(MARK_FAILED)
+    public boolean markFailed(UUID eventId, OffsetDateTime claimUntil, String lastError, OffsetDateTime nextAttemptAt) {
+        return jdbc.sql(MARK_FAILED)
                 .param("eventId", eventId)
+                .param("claimUntil", claimUntil)
                 .param("lastError", lastError)
                 .param("nextAttemptAt", nextAttemptAt)
-                .update();
+                .update() == 1;
     }
 
     private OutboxEvent toOutboxEvent(Order order) {
@@ -143,6 +152,9 @@ public class OutboxEventRepositoryImpl implements OutboxEventRepository {
         event.setPayload(rs.getString("payload"));
         event.setCreatedAt(rs.getObject("created_at", OffsetDateTime.class));
         event.setProcessedAt(rs.getObject("processed_at", OffsetDateTime.class));
+        event.setStatus(rs.getString("status"));
+        event.setClaimedAt(rs.getObject("claimed_at", OffsetDateTime.class));
+        event.setClaimUntil(rs.getObject("claim_until", OffsetDateTime.class));
         event.setAttemptCount(rs.getInt("attempt_count"));
         event.setLastError(rs.getString("last_error"));
         event.setNextAttemptAt(rs.getObject("next_attempt_at", OffsetDateTime.class));
