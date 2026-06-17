@@ -109,8 +109,9 @@ class OutboxEventRepositoryImplTest {
 
     @Test
     @SuppressWarnings("unchecked")
-    void findUnprocessedBatch_success() throws Exception {
+    void claimBatch_success() throws Exception {
         UUID eventId = UUID.fromString("7a2517f2-e651-4569-9f96-ac09f8b64f9a");
+        OffsetDateTime claimUntil = OffsetDateTime.parse("2026-01-02T03:05:00+03:00");
         ResultSet rs = org.mockito.Mockito.mock(ResultSet.class);
         when(rs.getObject("event_id", UUID.class)).thenReturn(eventId);
         when(rs.getString("aggregate_type")).thenReturn("Order");
@@ -120,11 +121,11 @@ class OutboxEventRepositoryImplTest {
         when(rs.getObject("created_at", OffsetDateTime.class)).thenReturn(OffsetDateTime.parse("2026-01-02T03:04:00+03:00"));
         when(rs.getObject("processed_at", OffsetDateTime.class)).thenReturn(null);
         when(rs.getInt("attempt_count")).thenReturn(1);
-        when(rs.getString("last_error")).thenReturn("Timeout");
+        when(rs.getString("last_error")).thenReturn(null);
         when(rs.getObject("next_attempt_at", OffsetDateTime.class)).thenReturn(OffsetDateTime.parse("2026-01-02T03:06:00+03:00"));
-
         when(jdbc.sql(anyString())).thenReturn(statementSpec);
         when(statementSpec.param("batchSize", 5)).thenReturn(statementSpec);
+        when(statementSpec.param("claimUntil", claimUntil)).thenReturn(statementSpec);
         when(statementSpec.query(any(RowMapper.class))).thenReturn(querySpec);
         when(querySpec.list()).thenAnswer(invocation -> {
             ArgumentCaptor<RowMapper<OutboxEvent>> rowMapperCaptor = ArgumentCaptor.forClass(RowMapper.class);
@@ -134,13 +135,18 @@ class OutboxEventRepositoryImplTest {
 
         OutboxEventRepository repository = new OutboxEventRepositoryImpl(jdbc, payloadSerializer);
 
-        List<OutboxEvent> events = repository.findUnprocessedBatch(5);
+        List<OutboxEvent> events = repository.claimBatch(5, claimUntil);
 
         ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
         verify(jdbc).sql(sqlCaptor.capture());
         assertThat(sqlCaptor.getValue())
+                .contains("UPDATE outbox_events")
+                .contains("RETURNING")
+                .contains("status = 'PROCESSING'")
+                .contains("attempt_count = attempt_count + 1")
                 .contains("processed_at IS NULL")
-                .contains("next_attempt_at <= now()")
+                .contains("status IN ('PENDING', 'FAILED') AND next_attempt_at <= now()")
+                .contains("status = 'PROCESSING' AND claim_until <= now()")
                 .contains("ORDER BY created_at, event_id")
                 .contains("LIMIT :batchSize")
                 .contains("FOR UPDATE SKIP LOCKED");
@@ -154,7 +160,7 @@ class OutboxEventRepositoryImplTest {
                     assertThat(event.getCreatedAt()).isEqualTo(OffsetDateTime.parse("2026-01-02T03:04:00+03:00"));
                     assertThat(event.getProcessedAt()).isNull();
                     assertThat(event.getAttemptCount()).isEqualTo(1);
-                    assertThat(event.getLastError()).isEqualTo("Timeout");
+                    assertThat(event.getLastError()).isNull();
                     assertThat(event.getNextAttemptAt()).isEqualTo(OffsetDateTime.parse("2026-01-02T03:06:00+03:00"));
                 });
     }
@@ -173,8 +179,11 @@ class OutboxEventRepositoryImplTest {
         ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
         verify(jdbc).sql(sqlCaptor.capture());
         assertThat(sqlCaptor.getValue())
+                .contains("status = 'PROCESSED'")
                 .contains("processed_at = now()")
                 .contains("last_error = NULL")
+                .contains("claimed_at = NULL")
+                .contains("claim_until = NULL")
                 .contains("WHERE event_id = :eventId");
     }
 
@@ -195,9 +204,12 @@ class OutboxEventRepositoryImplTest {
         ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
         verify(jdbc).sql(sqlCaptor.capture());
         assertThat(sqlCaptor.getValue())
-                .contains("attempt_count = attempt_count + 1")
+                .contains("status = 'FAILED'")
+                .doesNotContain("attempt_count = attempt_count + 1")
                 .contains("last_error = :lastError")
                 .contains("next_attempt_at = :nextAttemptAt")
+                .contains("claimed_at = NULL")
+                .contains("claim_until = NULL")
                 .contains("WHERE event_id = :eventId");
     }
 

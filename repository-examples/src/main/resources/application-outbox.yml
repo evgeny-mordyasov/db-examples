@@ -2,3 +2,4 @@ outbox:
   relay:
     max-error-length: 500
     next-attempt-delay: 1s
+    processing-timeout: 30s

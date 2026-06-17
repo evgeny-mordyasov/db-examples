@@ -11,7 +11,7 @@ public interface OutboxEventRepository {
 
     void save(Order order);
 
-    List<OutboxEvent> findUnprocessedBatch(int batchSize);
+    List<OutboxEvent> claimBatch(int batchSize, OffsetDateTime claimUntil);
 
     void markProcessed(UUID eventId);
 
