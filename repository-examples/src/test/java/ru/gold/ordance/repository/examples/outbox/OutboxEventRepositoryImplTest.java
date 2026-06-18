@@ -225,17 +225,19 @@ class OutboxEventRepositoryImplTest {
         when(statementSpec.param("claimUntil", claimUntil)).thenReturn(statementSpec);
         when(statementSpec.param("lastError", "Timeout")).thenReturn(statementSpec);
         when(statementSpec.param("nextAttemptAt", nextAttemptAt)).thenReturn(statementSpec);
+        when(statementSpec.param("maxAttempts", 3)).thenReturn(statementSpec);
         when(statementSpec.update()).thenReturn(1);
 
         OutboxEventRepository repository = new OutboxEventRepositoryImpl(jdbc, payloadSerializer);
 
-        boolean updated = repository.markFailed(eventId, claimUntil, "Timeout", nextAttemptAt);
+        boolean updated = repository.markFailed(eventId, claimUntil, "Timeout", nextAttemptAt, 3);
 
         ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
         verify(jdbc).sql(sqlCaptor.capture());
         assertThat(updated).isTrue();
         assertThat(sqlCaptor.getValue())
-                .contains("status = 'FAILED'")
+                .contains("WHEN attempt_count >= :maxAttempts THEN 'FINAL_FAILED'")
+                .contains("ELSE 'FAILED'")
                 .doesNotContain("attempt_count = attempt_count + 1")
                 .contains("last_error = :lastError")
                 .contains("next_attempt_at = :nextAttemptAt")

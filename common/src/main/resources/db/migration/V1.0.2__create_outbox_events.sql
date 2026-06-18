@@ -13,7 +13,7 @@ CREATE TABLE outbox_events (
     last_error     TEXT NULL,
     next_attempt_at TIMESTAMPTZ NOT NULL DEFAULT now(),
     CONSTRAINT chk_outbox_events_status
-        CHECK (status IN ('PENDING', 'PROCESSING', 'PROCESSED', 'FAILED'))
+        CHECK (status IN ('PENDING', 'PROCESSING', 'PROCESSED', 'FAILED', 'FINAL_FAILED'))
 );
 
 CREATE INDEX idx_outbox_events_claimable

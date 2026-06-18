@@ -31,6 +31,7 @@ public class OutboxEventRelay {
         this.consumer = Asserts.nonNull(consumer, "consumer");
         this.properties = Asserts.nonNull(properties, "properties");
         Asserts.positive(properties.getMaxErrorLength(), "maxErrorLength");
+        Asserts.positive(properties.getMaxAttempts(), "maxAttempts");
         Asserts.nonNull(properties.getNextAttemptDelay(), "nextAttemptDelay");
         Asserts.nonNull(properties.getProcessingTimeout(), "processingTimeout");
         this.clock = Asserts.nonNull(clock, "clock");
@@ -73,7 +74,8 @@ public class OutboxEventRelay {
                         event.getEventId(),
                         event.getClaimUntil(),
                         truncate(e.getMessage()),
-                        nextAttemptAt(event)
+                        nextAttemptAt(event),
+                        properties.getMaxAttempts()
                 ));
     }
 

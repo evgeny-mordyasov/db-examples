@@ -15,5 +15,5 @@ public interface OutboxEventRepository {
 
     boolean markProcessed(UUID eventId, OffsetDateTime claimUntil);
 
-    boolean markFailed(UUID eventId, OffsetDateTime claimUntil, String lastError, OffsetDateTime nextAttemptAt);
+    boolean markFailed(UUID eventId, OffsetDateTime claimUntil, String lastError, OffsetDateTime nextAttemptAt, int maxAttempts);
 }

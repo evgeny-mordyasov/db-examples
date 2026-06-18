@@ -147,6 +147,42 @@ class OrderServiceIT {
     }
 
     @Test
+    void outboxRelay_marksFinalFailedAfterMaxAttemptsAndSkipsRetry() {
+        service.createOrder(newOrder());
+        Clock clock = Clock.fixed(Instant.parse("2026-01-02T03:04:00Z"), ZoneOffset.UTC);
+        OutboxEventRelayProperties properties = properties(500, Duration.ofSeconds(1));
+        properties.setMaxAttempts(1);
+        OutboxEventRelay failingRelay = new OutboxEventRelay(
+                tx,
+                outboxEventRepository,
+                event -> {
+                    throw new RuntimeException("Poison event");
+                },
+                properties,
+                clock
+        );
+
+        OutboxEventRelay.PollResult firstPoll = failingRelay.pollBatch(10);
+        OutboxEventRelay.PollResult secondPoll = failingRelay.pollBatch(10);
+
+        assertThat(firstPoll).isEqualTo(new OutboxEventRelay.PollResult(1, 0, 1));
+        assertThat(secondPoll).isEqualTo(new OutboxEventRelay.PollResult(0, 0, 0));
+        assertThat(jdbc.sql("""
+                        SELECT status, attempt_count, last_error
+                        FROM outbox_events
+                        """)
+                .query((rs, rowNum) -> Map.<String, Object>of(
+                        "status", rs.getString("status"),
+                        "attempt_count", rs.getInt("attempt_count"),
+                        "last_error", rs.getString("last_error")
+                ))
+                .single())
+                .containsEntry("status", "FINAL_FAILED")
+                .containsEntry("attempt_count", 1)
+                .containsEntry("last_error", "Poison event");
+    }
+
+    @Test
     void outboxRelay_commitsClaimBeforeConsumerRuns() {
         service.createOrder(newOrder());
         Clock clock = Clock.fixed(Instant.parse("2026-01-02T03:04:00Z"), ZoneOffset.UTC);
@@ -285,8 +321,14 @@ class OrderServiceIT {
             }
 
             @Override
-            public boolean markFailed(UUID eventId, OffsetDateTime claimUntil, String lastError, OffsetDateTime nextAttemptAt) {
-                return outboxEventRepository.markFailed(eventId, claimUntil, lastError, nextAttemptAt);
+            public boolean markFailed(
+                    UUID eventId,
+                    OffsetDateTime claimUntil,
+                    String lastError,
+                    OffsetDateTime nextAttemptAt,
+                    int maxAttempts
+            ) {
+                return outboxEventRepository.markFailed(eventId, claimUntil, lastError, nextAttemptAt, maxAttempts);
             }
         };
     }
@@ -304,6 +346,7 @@ class OrderServiceIT {
         properties.setMaxErrorLength(maxErrorLength);
         properties.setNextAttemptDelay(nextAttemptDelay);
         properties.setProcessingTimeout(Duration.ofSeconds(30));
+        properties.setMaxAttempts(3);
         return properties;
     }
 

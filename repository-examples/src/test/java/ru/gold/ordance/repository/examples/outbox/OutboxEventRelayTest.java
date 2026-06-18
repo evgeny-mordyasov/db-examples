@@ -24,6 +24,7 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
@@ -66,7 +67,8 @@ class OutboxEventRelayTest {
                 failure.getEventId(),
                 failure.getClaimUntil(),
                 "Delivery timeout",
-                OffsetDateTime.parse("2026-01-02T03:04:02Z")
+                OffsetDateTime.parse("2026-01-02T03:04:02Z"),
+                3
         )).thenReturn(true);
         failForEvent(failure, "Delivery timeout");
 
@@ -85,7 +87,8 @@ class OutboxEventRelayTest {
                 failure.getEventId(),
                 failure.getClaimUntil(),
                 "Delivery timeout",
-                OffsetDateTime.parse("2026-01-02T03:04:02Z")
+                OffsetDateTime.parse("2026-01-02T03:04:02Z"),
+                3
         );
     }
 
@@ -98,7 +101,8 @@ class OutboxEventRelayTest {
                 any(UUID.class),
                 any(OffsetDateTime.class),
                 any(String.class),
-                any(OffsetDateTime.class)
+                any(OffsetDateTime.class),
+                anyInt()
         )).thenReturn(true);
         failForEvent(failure, "x".repeat(600));
 
@@ -111,7 +115,8 @@ class OutboxEventRelayTest {
                 any(UUID.class),
                 any(OffsetDateTime.class),
                 errorCaptor.capture(),
-                any(OffsetDateTime.class)
+                any(OffsetDateTime.class),
+                anyInt()
         );
         assertThat(errorCaptor.getValue()).hasSize(500);
     }
@@ -125,7 +130,8 @@ class OutboxEventRelayTest {
                 any(UUID.class),
                 any(OffsetDateTime.class),
                 any(String.class),
-                any(OffsetDateTime.class)
+                any(OffsetDateTime.class),
+                anyInt()
         )).thenReturn(true);
         failForEvent(failure, "x".repeat(50));
 
@@ -144,7 +150,8 @@ class OutboxEventRelayTest {
                 any(UUID.class),
                 any(OffsetDateTime.class),
                 errorCaptor.capture(),
-                any(OffsetDateTime.class)
+                any(OffsetDateTime.class),
+                anyInt()
         );
         assertThat(errorCaptor.getValue()).hasSize(10);
     }
@@ -158,7 +165,8 @@ class OutboxEventRelayTest {
                 failure.getEventId(),
                 failure.getClaimUntil(),
                 "Delivery timeout",
-                OffsetDateTime.parse("2026-01-02T03:08:00Z")
+                OffsetDateTime.parse("2026-01-02T03:08:00Z"),
+                3
         )).thenReturn(true);
         failForEvent(failure, "Delivery timeout");
 
@@ -176,7 +184,8 @@ class OutboxEventRelayTest {
                 failure.getEventId(),
                 failure.getClaimUntil(),
                 "Delivery timeout",
-                OffsetDateTime.parse("2026-01-02T03:08:00Z")
+                OffsetDateTime.parse("2026-01-02T03:08:00Z"),
+                3
         );
     }
 
@@ -246,6 +255,7 @@ class OutboxEventRelayTest {
         properties.setMaxErrorLength(maxErrorLength);
         properties.setNextAttemptDelay(nextAttemptDelay);
         properties.setProcessingTimeout(Duration.ofSeconds(30));
+        properties.setMaxAttempts(3);
         return properties;
     }
 

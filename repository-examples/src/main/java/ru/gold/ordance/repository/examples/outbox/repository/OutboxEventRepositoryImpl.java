@@ -71,7 +71,10 @@ public class OutboxEventRepositoryImpl implements OutboxEventRepository {
 
     private static final String MARK_FAILED = """
             UPDATE outbox_events
-            SET status = 'FAILED',
+            SET status = CASE
+                    WHEN attempt_count >= :maxAttempts THEN 'FINAL_FAILED'
+                    ELSE 'FAILED'
+                END,
                 last_error = :lastError,
                 next_attempt_at = :nextAttemptAt,
                 claimed_at = NULL,
@@ -124,12 +127,20 @@ public class OutboxEventRepositoryImpl implements OutboxEventRepository {
     }
 
     @Override
-    public boolean markFailed(UUID eventId, OffsetDateTime claimUntil, String lastError, OffsetDateTime nextAttemptAt) {
+    public boolean markFailed(
+            UUID eventId,
+            OffsetDateTime claimUntil,
+            String lastError,
+            OffsetDateTime nextAttemptAt,
+            int maxAttempts
+    ) {
+        Asserts.positive(maxAttempts, "maxAttempts");
         return jdbc.sql(MARK_FAILED)
                 .param("eventId", eventId)
                 .param("claimUntil", claimUntil)
                 .param("lastError", lastError)
                 .param("nextAttemptAt", nextAttemptAt)
+                .param("maxAttempts", maxAttempts)
                 .update() == 1;
     }
 

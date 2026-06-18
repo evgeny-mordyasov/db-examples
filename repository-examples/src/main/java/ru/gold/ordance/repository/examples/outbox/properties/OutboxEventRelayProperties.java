@@ -5,6 +5,7 @@ import java.time.Duration;
 public class OutboxEventRelayProperties {
 
     private int maxErrorLength;
+    private int maxAttempts;
     private Duration nextAttemptDelay;
     private Duration processingTimeout;
 
@@ -14,6 +15,14 @@ public class OutboxEventRelayProperties {
 
     public void setMaxErrorLength(int maxErrorLength) {
         this.maxErrorLength = maxErrorLength;
+    }
+
+    public int getMaxAttempts() {
+        return maxAttempts;
+    }
+
+    public void setMaxAttempts(int maxAttempts) {
+        this.maxAttempts = maxAttempts;
     }
 
     public Duration getNextAttemptDelay() {
