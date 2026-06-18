@@ -6,8 +6,6 @@ import ru.gold.ordance.jdbc.examples.common.db.model.OutboxEvent;
 import ru.gold.ordance.repository.examples.outbox.properties.OutboxEventRelayProperties;
 import ru.gold.ordance.repository.examples.outbox.repository.OutboxEventRepository;
 
-import java.time.Clock;
-import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.List;
 
@@ -17,14 +15,12 @@ public class OutboxEventRelay {
     private final OutboxEventRepository repository;
     private final OutboxEventConsumer consumer;
     private final OutboxEventRelayProperties properties;
-    private final Clock clock;
 
     public OutboxEventRelay(
             TransactionTemplate transactionTemplate,
             OutboxEventRepository repository,
             OutboxEventConsumer consumer,
-            OutboxEventRelayProperties properties,
-            Clock clock
+            OutboxEventRelayProperties properties
     ) {
         this.transactionTemplate = Asserts.nonNull(transactionTemplate, "transactionTemplate");
         this.repository = Asserts.nonNull(repository, "repository");
@@ -34,7 +30,6 @@ public class OutboxEventRelay {
         Asserts.positive(properties.getMaxAttempts(), "maxAttempts");
         Asserts.nonNull(properties.getNextAttemptDelay(), "nextAttemptDelay");
         Asserts.nonNull(properties.getProcessingTimeout(), "processingTimeout");
-        this.clock = Asserts.nonNull(clock, "clock");
     }
 
     public PollResult pollBatch(int batchSize) {
@@ -43,8 +38,9 @@ public class OutboxEventRelay {
     }
 
     private PollResult processBatch(int batchSize) {
-        OffsetDateTime claimUntil = OffsetDateTime.now(clock).plus(properties.getProcessingTimeout());
-        List<OutboxEvent> events = transactionTemplate.execute(status -> repository.claimBatch(batchSize, claimUntil));
+        List<OutboxEvent> events = transactionTemplate.execute(
+                status -> repository.claimBatch(batchSize, properties.getProcessingTimeout())
+        );
         int delivered = 0;
         int failed = 0;
 
@@ -74,14 +70,9 @@ public class OutboxEventRelay {
                         event.getEventId(),
                         event.getClaimUntil(),
                         truncate(e.getMessage()),
-                        nextAttemptAt(event),
+                        properties.getNextAttemptDelay(),
                         properties.getMaxAttempts()
                 ));
-    }
-
-    private OffsetDateTime nextAttemptAt(OutboxEvent event) {
-        Duration delay = properties.getNextAttemptDelay().multipliedBy(event.getAttemptCount());
-        return OffsetDateTime.now(clock).plus(delay);
     }
 
     private String truncate(String value) {

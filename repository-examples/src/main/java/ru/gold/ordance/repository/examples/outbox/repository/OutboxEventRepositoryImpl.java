@@ -6,6 +6,7 @@ import ru.gold.ordance.jdbc.examples.common.db.model.Order;
 import ru.gold.ordance.jdbc.examples.common.db.model.OutboxEvent;
 import ru.gold.ordance.repository.examples.outbox.service.OutboxEventPayloadSerializer;
 
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
@@ -37,7 +38,7 @@ public class OutboxEventRepositoryImpl implements OutboxEventRepository {
             UPDATE outbox_events event
             SET status = 'PROCESSING',
                 claimed_at = now(),
-                claim_until = :claimUntil,
+                claim_until = now() + (:processingTimeoutMillis * interval '1 millisecond'),
                 attempt_count = attempt_count + 1,
                 last_error = NULL
             FROM claimable
@@ -76,7 +77,7 @@ public class OutboxEventRepositoryImpl implements OutboxEventRepository {
                     ELSE 'FAILED'
                 END,
                 last_error = :lastError,
-                next_attempt_at = :nextAttemptAt,
+                next_attempt_at = now() + (:nextAttemptDelayMillis * attempt_count * interval '1 millisecond'),
                 claimed_at = NULL,
                 claim_until = NULL
             WHERE event_id = :eventId
@@ -108,12 +109,12 @@ public class OutboxEventRepositoryImpl implements OutboxEventRepository {
     }
 
     @Override
-    public List<OutboxEvent> claimBatch(int batchSize, OffsetDateTime claimUntil) {
+    public List<OutboxEvent> claimBatch(int batchSize, Duration processingTimeout) {
         Asserts.positive(batchSize, "batchSize");
-        Asserts.nonNull(claimUntil, "claimUntil");
+        Asserts.nonNull(processingTimeout, "processingTimeout");
         return jdbc.sql(CLAIM_BATCH)
                 .param("batchSize", batchSize)
-                .param("claimUntil", claimUntil)
+                .param("processingTimeoutMillis", processingTimeout.toMillis())
                 .query((rs, rowNum) -> mapEvent(rs))
                 .list();
     }
@@ -131,15 +132,16 @@ public class OutboxEventRepositoryImpl implements OutboxEventRepository {
             UUID eventId,
             OffsetDateTime claimUntil,
             String lastError,
-            OffsetDateTime nextAttemptAt,
+            Duration nextAttemptDelay,
             int maxAttempts
     ) {
+        Asserts.nonNull(nextAttemptDelay, "nextAttemptDelay");
         Asserts.positive(maxAttempts, "maxAttempts");
         return jdbc.sql(MARK_FAILED)
                 .param("eventId", eventId)
                 .param("claimUntil", claimUntil)
                 .param("lastError", lastError)
-                .param("nextAttemptAt", nextAttemptAt)
+                .param("nextAttemptDelayMillis", nextAttemptDelay.toMillis())
                 .param("maxAttempts", maxAttempts)
                 .update() == 1;
     }

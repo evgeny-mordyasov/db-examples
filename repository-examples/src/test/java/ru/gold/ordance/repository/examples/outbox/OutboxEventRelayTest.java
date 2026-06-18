@@ -13,11 +13,8 @@ import ru.gold.ordance.repository.examples.outbox.repository.OutboxEventReposito
 import ru.gold.ordance.repository.examples.outbox.service.OutboxEventConsumer;
 import ru.gold.ordance.repository.examples.outbox.service.OutboxEventRelay;
 
-import java.time.Clock;
 import java.time.Duration;
-import java.time.Instant;
 import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.List;
 import java.util.UUID;
 
@@ -36,8 +33,6 @@ class OutboxEventRelayTest {
     @Mock private TransactionTemplate tx;
     @Mock private OutboxEventRepository repository;
     @Mock private OutboxEventConsumer consumer;
-
-    private final Clock clock = Clock.fixed(Instant.parse("2026-01-02T03:04:00Z"), ZoneOffset.UTC);
 
     @Test
     void createInstance_transactionTemplateIsNull() {
@@ -61,13 +56,13 @@ class OutboxEventRelayTest {
         OutboxEvent success = event("7a2517f2-e651-4569-9f96-ac09f8b64f9a", 1);
         OutboxEvent failure = event("23eb899d-ddf1-4687-a6fe-8231dbf5f383", 2);
         stubTransaction();
-        when(repository.claimBatch(10, OffsetDateTime.parse("2026-01-02T03:04:30Z"))).thenReturn(List.of(success, failure));
+        when(repository.claimBatch(10, Duration.ofSeconds(30))).thenReturn(List.of(success, failure));
         when(repository.markProcessed(success.getEventId(), success.getClaimUntil())).thenReturn(true);
         when(repository.markFailed(
                 failure.getEventId(),
                 failure.getClaimUntil(),
                 "Delivery timeout",
-                OffsetDateTime.parse("2026-01-02T03:04:02Z"),
+                Duration.ofSeconds(1),
                 3
         )).thenReturn(true);
         failForEvent(failure, "Delivery timeout");
@@ -79,7 +74,7 @@ class OutboxEventRelayTest {
         assertThat(result.fetched()).isEqualTo(2);
         assertThat(result.delivered()).isEqualTo(1);
         assertThat(result.failed()).isEqualTo(1);
-        verify(repository).claimBatch(10, OffsetDateTime.parse("2026-01-02T03:04:30Z"));
+        verify(repository).claimBatch(10, Duration.ofSeconds(30));
         verify(consumer).accept(success);
         verify(consumer).accept(failure);
         verify(repository).markProcessed(success.getEventId(), success.getClaimUntil());
@@ -87,7 +82,7 @@ class OutboxEventRelayTest {
                 failure.getEventId(),
                 failure.getClaimUntil(),
                 "Delivery timeout",
-                OffsetDateTime.parse("2026-01-02T03:04:02Z"),
+                Duration.ofSeconds(1),
                 3
         );
     }
@@ -96,12 +91,12 @@ class OutboxEventRelayTest {
     void pollBatch_truncatesLongError() {
         OutboxEvent failure = event("23eb899d-ddf1-4687-a6fe-8231dbf5f383", 1);
         stubTransaction();
-        when(repository.claimBatch(1, OffsetDateTime.parse("2026-01-02T03:04:30Z"))).thenReturn(List.of(failure));
+        when(repository.claimBatch(1, Duration.ofSeconds(30))).thenReturn(List.of(failure));
         when(repository.markFailed(
                 any(UUID.class),
                 any(OffsetDateTime.class),
                 any(String.class),
-                any(OffsetDateTime.class),
+                any(Duration.class),
                 anyInt()
         )).thenReturn(true);
         failForEvent(failure, "x".repeat(600));
@@ -115,7 +110,7 @@ class OutboxEventRelayTest {
                 any(UUID.class),
                 any(OffsetDateTime.class),
                 errorCaptor.capture(),
-                any(OffsetDateTime.class),
+                any(Duration.class),
                 anyInt()
         );
         assertThat(errorCaptor.getValue()).hasSize(500);
@@ -125,12 +120,12 @@ class OutboxEventRelayTest {
     void pollBatch_usesConfiguredMaxErrorLength() {
         OutboxEvent failure = event("23eb899d-ddf1-4687-a6fe-8231dbf5f383", 1);
         stubTransaction();
-        when(repository.claimBatch(1, OffsetDateTime.parse("2026-01-02T03:04:30Z"))).thenReturn(List.of(failure));
+        when(repository.claimBatch(1, Duration.ofSeconds(30))).thenReturn(List.of(failure));
         when(repository.markFailed(
                 any(UUID.class),
                 any(OffsetDateTime.class),
                 any(String.class),
-                any(OffsetDateTime.class),
+                any(Duration.class),
                 anyInt()
         )).thenReturn(true);
         failForEvent(failure, "x".repeat(50));
@@ -139,8 +134,7 @@ class OutboxEventRelayTest {
                 tx,
                 repository,
                 consumer,
-                properties(10, Duration.ofSeconds(1)),
-                clock
+                properties(10, Duration.ofSeconds(1))
         );
 
         relay.pollBatch(1);
@@ -150,7 +144,7 @@ class OutboxEventRelayTest {
                 any(UUID.class),
                 any(OffsetDateTime.class),
                 errorCaptor.capture(),
-                any(OffsetDateTime.class),
+                any(Duration.class),
                 anyInt()
         );
         assertThat(errorCaptor.getValue()).hasSize(10);
@@ -160,12 +154,12 @@ class OutboxEventRelayTest {
     void pollBatch_usesConfiguredNextAttemptDelay() {
         OutboxEvent failure = event("23eb899d-ddf1-4687-a6fe-8231dbf5f383", 2);
         stubTransaction();
-        when(repository.claimBatch(1, OffsetDateTime.parse("2026-01-02T03:04:30Z"))).thenReturn(List.of(failure));
+        when(repository.claimBatch(1, Duration.ofSeconds(30))).thenReturn(List.of(failure));
         when(repository.markFailed(
                 failure.getEventId(),
                 failure.getClaimUntil(),
                 "Delivery timeout",
-                OffsetDateTime.parse("2026-01-02T03:08:00Z"),
+                Duration.ofMinutes(2),
                 3
         )).thenReturn(true);
         failForEvent(failure, "Delivery timeout");
@@ -174,8 +168,7 @@ class OutboxEventRelayTest {
                 tx,
                 repository,
                 consumer,
-                properties(500, Duration.ofMinutes(2)),
-                clock
+                properties(500, Duration.ofMinutes(2))
         );
 
         relay.pollBatch(1);
@@ -184,7 +177,7 @@ class OutboxEventRelayTest {
                 failure.getEventId(),
                 failure.getClaimUntil(),
                 "Delivery timeout",
-                OffsetDateTime.parse("2026-01-02T03:08:00Z"),
+                Duration.ofMinutes(2),
                 3
         );
     }
@@ -193,7 +186,7 @@ class OutboxEventRelayTest {
     void pollBatch_staleProcessedUpdate_shouldNotCountDelivered() {
         OutboxEvent stale = event("7a2517f2-e651-4569-9f96-ac09f8b64f9a", 1);
         stubTransaction();
-        when(repository.claimBatch(1, OffsetDateTime.parse("2026-01-02T03:04:30Z"))).thenReturn(List.of(stale));
+        when(repository.claimBatch(1, Duration.ofSeconds(30))).thenReturn(List.of(stale));
         when(repository.markProcessed(stale.getEventId(), stale.getClaimUntil())).thenReturn(false);
 
         OutboxEventRelay relay = newRelay(tx);
@@ -207,19 +200,18 @@ class OutboxEventRelayTest {
     @Test
     void pollBatch_usesConfiguredProcessingTimeout() {
         stubTransaction();
-        when(repository.claimBatch(1, OffsetDateTime.parse("2026-01-02T03:04:05Z"))).thenReturn(List.of());
+        when(repository.claimBatch(1, Duration.ofSeconds(5))).thenReturn(List.of());
 
         OutboxEventRelay relay = new OutboxEventRelay(
                 tx,
                 repository,
                 consumer,
-                properties(500, Duration.ofSeconds(1), Duration.ofSeconds(5)),
-                clock
+                properties(500, Duration.ofSeconds(1), Duration.ofSeconds(5))
         );
 
         relay.pollBatch(1);
 
-        verify(repository).claimBatch(1, OffsetDateTime.parse("2026-01-02T03:04:05Z"));
+        verify(repository).claimBatch(1, Duration.ofSeconds(5));
     }
 
     @SuppressWarnings("unchecked")
@@ -245,8 +237,7 @@ class OutboxEventRelayTest {
                 transactionTemplate,
                 repository,
                 consumer,
-                properties(500, Duration.ofSeconds(1)),
-                clock
+                properties(500, Duration.ofSeconds(1))
         );
     }
 

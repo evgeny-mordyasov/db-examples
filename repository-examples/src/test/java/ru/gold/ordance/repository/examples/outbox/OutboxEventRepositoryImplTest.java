@@ -15,6 +15,7 @@ import ru.gold.ordance.repository.examples.outbox.service.OutboxEventPayloadSeri
 
 import java.sql.ResultSet;
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
@@ -128,7 +129,7 @@ class OutboxEventRepositoryImplTest {
         when(rs.getObject("next_attempt_at", OffsetDateTime.class)).thenReturn(OffsetDateTime.parse("2026-01-02T03:06:00+03:00"));
         when(jdbc.sql(anyString())).thenReturn(statementSpec);
         when(statementSpec.param("batchSize", 5)).thenReturn(statementSpec);
-        when(statementSpec.param("claimUntil", claimUntil)).thenReturn(statementSpec);
+        when(statementSpec.param("processingTimeoutMillis", 30_000L)).thenReturn(statementSpec);
         when(statementSpec.query(any(RowMapper.class))).thenReturn(querySpec);
         when(querySpec.list()).thenAnswer(invocation -> {
             ArgumentCaptor<RowMapper<OutboxEvent>> rowMapperCaptor = ArgumentCaptor.forClass(RowMapper.class);
@@ -138,7 +139,7 @@ class OutboxEventRepositoryImplTest {
 
         OutboxEventRepository repository = new OutboxEventRepositoryImpl(jdbc, payloadSerializer);
 
-        List<OutboxEvent> events = repository.claimBatch(5, claimUntil);
+        List<OutboxEvent> events = repository.claimBatch(5, Duration.ofSeconds(30));
 
         ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
         verify(jdbc).sql(sqlCaptor.capture());
@@ -147,6 +148,7 @@ class OutboxEventRepositoryImplTest {
                 .contains("RETURNING")
                 .contains("status = 'PROCESSING'")
                 .contains("attempt_count = attempt_count + 1")
+                .contains("claim_until = now() + (:processingTimeoutMillis * interval '1 millisecond')")
                 .contains("event.status")
                 .contains("event.claimed_at")
                 .contains("event.claim_until")
@@ -219,18 +221,17 @@ class OutboxEventRepositoryImplTest {
     void markFailed_success() {
         UUID eventId = UUID.fromString("7a2517f2-e651-4569-9f96-ac09f8b64f9a");
         OffsetDateTime claimUntil = OffsetDateTime.parse("2026-01-02T03:05:00+03:00");
-        OffsetDateTime nextAttemptAt = OffsetDateTime.parse("2026-01-02T03:06:00+03:00");
         when(jdbc.sql(anyString())).thenReturn(statementSpec);
         when(statementSpec.param("eventId", eventId)).thenReturn(statementSpec);
         when(statementSpec.param("claimUntil", claimUntil)).thenReturn(statementSpec);
         when(statementSpec.param("lastError", "Timeout")).thenReturn(statementSpec);
-        when(statementSpec.param("nextAttemptAt", nextAttemptAt)).thenReturn(statementSpec);
+        when(statementSpec.param("nextAttemptDelayMillis", 60_000L)).thenReturn(statementSpec);
         when(statementSpec.param("maxAttempts", 3)).thenReturn(statementSpec);
         when(statementSpec.update()).thenReturn(1);
 
         OutboxEventRepository repository = new OutboxEventRepositoryImpl(jdbc, payloadSerializer);
 
-        boolean updated = repository.markFailed(eventId, claimUntil, "Timeout", nextAttemptAt, 3);
+        boolean updated = repository.markFailed(eventId, claimUntil, "Timeout", Duration.ofMinutes(1), 3);
 
         ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
         verify(jdbc).sql(sqlCaptor.capture());
@@ -240,7 +241,7 @@ class OutboxEventRepositoryImplTest {
                 .contains("ELSE 'FAILED'")
                 .doesNotContain("attempt_count = attempt_count + 1")
                 .contains("last_error = :lastError")
-                .contains("next_attempt_at = :nextAttemptAt")
+                .contains("next_attempt_at = now() + (:nextAttemptDelayMillis * attempt_count * interval '1 millisecond')")
                 .contains("claimed_at = NULL")
                 .contains("claim_until = NULL")
                 .contains("WHERE event_id = :eventId")

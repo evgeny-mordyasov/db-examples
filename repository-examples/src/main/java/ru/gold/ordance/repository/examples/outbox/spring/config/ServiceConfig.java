@@ -17,8 +17,6 @@ import ru.gold.ordance.repository.examples.outbox.service.OutboxEventRelay;
 import ru.gold.ordance.repository.examples.outbox.properties.OutboxEventRelayProperties;
 import ru.gold.ordance.repository.examples.outbox.repository.OutboxEventRepository;
 
-import java.time.Clock;
-
 @Configuration(proxyBeanMethods = false)
 public class ServiceConfig {
 
@@ -26,11 +24,6 @@ public class ServiceConfig {
     @ConfigurationProperties("outbox.relay")
     OutboxEventRelayProperties outboxEventRelayProperties() {
         return new OutboxEventRelayProperties();
-    }
-
-    @Bean
-    Clock clock() {
-        return Clock.systemDefaultZone();
     }
 
     @Bean
@@ -55,15 +48,13 @@ public class ServiceConfig {
             TransactionTemplate transactionTemplate,
             OutboxEventRepository outboxEventRepository,
             OutboxEventConsumer outboxEventConsumer,
-            OutboxEventRelayProperties properties,
-            Clock clock
+            OutboxEventRelayProperties properties
     ) {
         return new OutboxEventRelay(
                 transactionTemplate,
                 outboxEventRepository,
                 outboxEventConsumer,
-                properties,
-                clock
+                properties
         );
     }
 

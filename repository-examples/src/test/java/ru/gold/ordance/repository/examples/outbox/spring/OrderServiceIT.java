@@ -19,11 +19,8 @@ import ru.gold.ordance.repository.examples.outbox.repository.OutboxEventReposito
 import ru.gold.ordance.jdbc.examples.common.db.model.OutboxEvent;
 
 import java.math.BigDecimal;
-import java.time.Clock;
 import java.time.Duration;
-import java.time.Instant;
 import java.time.OffsetDateTime;
-import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -100,15 +97,13 @@ class OrderServiceIT {
     @Test
     void outboxRelay_recordsFailureAndRetryState() {
         service.createOrder(newOrder());
-        Clock clock = Clock.fixed(Instant.parse("2026-01-02T03:04:00Z"), ZoneOffset.UTC);
         OutboxEventRelay failingRelay = new OutboxEventRelay(
                 tx,
                 outboxEventRepository,
                 event -> {
                     throw new RuntimeException("Consumer failed");
                 },
-                properties(500, Duration.ofSeconds(1)),
-                clock
+                properties(500, Duration.ofSeconds(1))
         );
 
         OutboxEventRelay.PollResult result = failingRelay.pollBatch(10);
@@ -139,8 +134,8 @@ class OrderServiceIT {
         assertThat(row)
                 .containsEntry("status", "FAILED")
                 .containsEntry("attempt_count", 1)
-                .containsEntry("last_error", "Consumer failed")
-                .containsEntry("next_attempt_at", OffsetDateTime.parse("2026-01-02T03:04:01Z"));
+                .containsEntry("last_error", "Consumer failed");
+        assertThat(row.get("next_attempt_at")).isInstanceOf(OffsetDateTime.class);
         assertThat(row.get("processed_at")).isNull();
         assertThat(row.get("claimed_at")).isNull();
         assertThat(row.get("claim_until")).isNull();
@@ -149,7 +144,6 @@ class OrderServiceIT {
     @Test
     void outboxRelay_marksFinalFailedAfterMaxAttemptsAndSkipsRetry() {
         service.createOrder(newOrder());
-        Clock clock = Clock.fixed(Instant.parse("2026-01-02T03:04:00Z"), ZoneOffset.UTC);
         OutboxEventRelayProperties properties = properties(500, Duration.ofSeconds(1));
         properties.setMaxAttempts(1);
         OutboxEventRelay failingRelay = new OutboxEventRelay(
@@ -158,8 +152,7 @@ class OrderServiceIT {
                 event -> {
                     throw new RuntimeException("Poison event");
                 },
-                properties,
-                clock
+                properties
         );
 
         OutboxEventRelay.PollResult firstPoll = failingRelay.pollBatch(10);
@@ -185,7 +178,6 @@ class OrderServiceIT {
     @Test
     void outboxRelay_commitsClaimBeforeConsumerRuns() {
         service.createOrder(newOrder());
-        Clock clock = Clock.fixed(Instant.parse("2026-01-02T03:04:00Z"), ZoneOffset.UTC);
         OutboxEventRelay relay = new OutboxEventRelay(
                 tx,
                 outboxEventRepository,
@@ -198,8 +190,7 @@ class OrderServiceIT {
                         .query(String.class)
                         .single())
                         .isEqualTo("PROCESSING"),
-                properties(500, Duration.ofSeconds(1)),
-                clock
+                properties(500, Duration.ofSeconds(1))
         );
 
         OutboxEventRelay.PollResult result = relay.pollBatch(10);
@@ -239,16 +230,20 @@ class OrderServiceIT {
     @Test
     void outboxRepository_staleClaim_doesNotOverwriteReclaimedEvent() {
         service.createOrder(newOrder());
-        OffsetDateTime oldClaimUntil = OffsetDateTime.parse("2026-01-02T03:05:00Z");
-        OffsetDateTime newClaimUntil = OffsetDateTime.parse("2030-01-02T03:05:00Z");
-        OutboxEvent firstClaim = outboxEventRepository.claimBatch(1, oldClaimUntil).getFirst();
-        OutboxEvent secondClaim = outboxEventRepository.claimBatch(1, newClaimUntil).getFirst();
+        OutboxEvent firstClaim = outboxEventRepository.claimBatch(1, Duration.ofMinutes(1)).getFirst();
+        jdbc.sql("""
+                        UPDATE outbox_events
+                        SET claim_until = now() - interval '1 second'
+                        WHERE event_id = :eventId
+                        """)
+                .param("eventId", firstClaim.getEventId())
+                .update();
+        OutboxEvent secondClaim = outboxEventRepository.claimBatch(1, Duration.ofMinutes(2)).getFirst();
 
         boolean updated = outboxEventRepository.markProcessed(firstClaim.getEventId(), firstClaim.getClaimUntil());
 
         assertThat(updated).isFalse();
-        assertThat(firstClaim.getClaimUntil()).isEqualTo(oldClaimUntil);
-        assertThat(secondClaim.getClaimUntil()).isEqualTo(newClaimUntil);
+        assertThat(secondClaim.getClaimUntil()).isAfter(firstClaim.getClaimUntil());
         assertThat(jdbc.sql("""
                         SELECT status, claim_until
                         FROM outbox_events
@@ -261,7 +256,7 @@ class OrderServiceIT {
                 ))
                 .single())
                 .containsEntry("status", "PROCESSING")
-                .containsEntry("claim_until", newClaimUntil);
+                .containsEntry("claim_until", secondClaim.getClaimUntil());
     }
 
     @Test
@@ -311,8 +306,8 @@ class OrderServiceIT {
             }
 
             @Override
-            public List<OutboxEvent> claimBatch(int batchSize, OffsetDateTime claimUntil) {
-                return outboxEventRepository.claimBatch(batchSize, claimUntil);
+            public List<OutboxEvent> claimBatch(int batchSize, Duration processingTimeout) {
+                return outboxEventRepository.claimBatch(batchSize, processingTimeout);
             }
 
             @Override
@@ -325,10 +320,10 @@ class OrderServiceIT {
                     UUID eventId,
                     OffsetDateTime claimUntil,
                     String lastError,
-                    OffsetDateTime nextAttemptAt,
+                    Duration nextAttemptDelay,
                     int maxAttempts
             ) {
-                return outboxEventRepository.markFailed(eventId, claimUntil, lastError, nextAttemptAt, maxAttempts);
+                return outboxEventRepository.markFailed(eventId, claimUntil, lastError, nextAttemptDelay, maxAttempts);
             }
         };
     }
