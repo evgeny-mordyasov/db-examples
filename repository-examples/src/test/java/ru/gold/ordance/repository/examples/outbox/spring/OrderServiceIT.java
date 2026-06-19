@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.annotation.Import;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.transaction.support.TransactionTemplate;
@@ -257,6 +258,32 @@ class OrderServiceIT {
                 .single())
                 .containsEntry("status", "PROCESSING")
                 .containsEntry("claim_until", secondClaim.getClaimUntil());
+    }
+
+    @Test
+    void outboxSchema_rejectsProcessingWithoutClaimUntil() {
+        service.createOrder(newOrder());
+
+        assertThatThrownBy(() -> jdbc.sql("""
+                        UPDATE outbox_events
+                        SET status = 'PROCESSING',
+                            claim_until = NULL
+                        """)
+                .update())
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void outboxSchema_rejectsProcessedWithoutProcessedAt() {
+        service.createOrder(newOrder());
+
+        assertThatThrownBy(() -> jdbc.sql("""
+                        UPDATE outbox_events
+                        SET status = 'PROCESSED',
+                            processed_at = NULL
+                        """)
+                .update())
+                .isInstanceOf(DataIntegrityViolationException.class);
     }
 
     @Test

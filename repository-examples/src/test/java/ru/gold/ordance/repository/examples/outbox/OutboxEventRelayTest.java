@@ -42,6 +42,33 @@ class OutboxEventRelayTest {
     }
 
     @Test
+    void createInstance_processingTimeoutIsZero() {
+        OutboxEventRelayProperties properties = properties(500, Duration.ofSeconds(1), Duration.ZERO);
+
+        assertThatThrownBy(() -> new OutboxEventRelay(tx, repository, consumer, properties))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("[processingTimeout] must be a positive duration");
+    }
+
+    @Test
+    void createInstance_processingTimeoutIsNegative() {
+        OutboxEventRelayProperties properties = properties(500, Duration.ofSeconds(1), Duration.ofMillis(-1));
+
+        assertThatThrownBy(() -> new OutboxEventRelay(tx, repository, consumer, properties))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("[processingTimeout] must be a positive duration");
+    }
+
+    @Test
+    void createInstance_nextAttemptDelayIsZero() {
+        OutboxEventRelayProperties properties = properties(500, Duration.ZERO, Duration.ofSeconds(30));
+
+        assertThatThrownBy(() -> new OutboxEventRelay(tx, repository, consumer, properties))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("[nextAttemptDelay] must be a positive duration");
+    }
+
+    @Test
     void pollBatch_batchSizeIsZero() {
         OutboxEventRelay relay = newRelay(tx);
 

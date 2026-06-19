@@ -111,7 +111,7 @@ public class OutboxEventRepositoryImpl implements OutboxEventRepository {
     @Override
     public List<OutboxEvent> claimBatch(int batchSize, Duration processingTimeout) {
         Asserts.positive(batchSize, "batchSize");
-        Asserts.nonNull(processingTimeout, "processingTimeout");
+        Asserts.positive(processingTimeout, "processingTimeout");
         return jdbc.sql(CLAIM_BATCH)
                 .param("batchSize", batchSize)
                 .param("processingTimeoutMillis", processingTimeout.toMillis())
@@ -135,7 +135,7 @@ public class OutboxEventRepositoryImpl implements OutboxEventRepository {
             Duration nextAttemptDelay,
             int maxAttempts
     ) {
-        Asserts.nonNull(nextAttemptDelay, "nextAttemptDelay");
+        Asserts.positive(nextAttemptDelay, "nextAttemptDelay");
         Asserts.positive(maxAttempts, "maxAttempts");
         return jdbc.sql(MARK_FAILED)
                 .param("eventId", eventId)

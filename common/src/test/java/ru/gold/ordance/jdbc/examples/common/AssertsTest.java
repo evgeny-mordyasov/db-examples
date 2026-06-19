@@ -2,6 +2,7 @@ package ru.gold.ordance.jdbc.examples.common;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.Duration;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -99,9 +100,39 @@ class AssertsTest {
     }
 
     @Test
+    void positive_duration_withNullValue_ShouldThrowIllegalArgumentException() {
+        assertThatThrownBy(() -> Asserts.positive((Duration) null, "timeout"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("[timeout] must not be null.");
+    }
+
+    @Test
+    void positive_duration_withZeroValue_ShouldThrowIllegalArgumentException() {
+        assertThatThrownBy(() -> Asserts.positive(Duration.ZERO, "timeout"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("[timeout] must be a positive duration");
+    }
+
+    @Test
+    void positive_duration_withNegativeValue_ShouldThrowIllegalArgumentException() {
+        assertThatThrownBy(() -> Asserts.positive(Duration.ofMillis(-1), "timeout"))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("[timeout] must be a positive duration");
+    }
+
+    @Test
     void positive_withPositiveValue_ShouldReturnValue() {
         long result = Asserts.positive(1, "count");
 
         assertThat(result).isOne();
+    }
+
+    @Test
+    void positive_duration_withPositiveValue_ShouldReturnValue() {
+        Duration timeout = Duration.ofMillis(1);
+
+        Duration result = Asserts.positive(timeout, "timeout");
+
+        assertThat(result).isSameAs(timeout);
     }
 }
