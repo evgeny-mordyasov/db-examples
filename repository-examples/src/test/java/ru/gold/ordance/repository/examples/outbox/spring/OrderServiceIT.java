@@ -267,7 +267,22 @@ class OrderServiceIT {
         assertThatThrownBy(() -> jdbc.sql("""
                         UPDATE outbox_events
                         SET status = 'PROCESSING',
+                            claimed_at = now(),
                             claim_until = NULL
+                        """)
+                .update())
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void outboxSchema_rejectsProcessingWithoutClaimedAt() {
+        service.createOrder(newOrder());
+
+        assertThatThrownBy(() -> jdbc.sql("""
+                        UPDATE outbox_events
+                        SET status = 'PROCESSING',
+                            claimed_at = NULL,
+                            claim_until = now() + interval '30 seconds'
                         """)
                 .update())
                 .isInstanceOf(DataIntegrityViolationException.class);
@@ -281,6 +296,21 @@ class OrderServiceIT {
                         UPDATE outbox_events
                         SET status = 'PROCESSED',
                             processed_at = NULL
+                        """)
+                .update())
+                .isInstanceOf(DataIntegrityViolationException.class);
+    }
+
+    @Test
+    void outboxSchema_rejectsProcessedWithClaimFields() {
+        service.createOrder(newOrder());
+
+        assertThatThrownBy(() -> jdbc.sql("""
+                        UPDATE outbox_events
+                        SET status = 'PROCESSED',
+                            processed_at = now(),
+                            claimed_at = now(),
+                            claim_until = now() + interval '30 seconds'
                         """)
                 .update())
                 .isInstanceOf(DataIntegrityViolationException.class);
