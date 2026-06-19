@@ -2,9 +2,7 @@ package ru.gold.ordance.repository.examples.outbox.repository;
 
 import org.springframework.jdbc.core.simple.JdbcClient;
 import ru.gold.ordance.jdbc.examples.common.Asserts;
-import ru.gold.ordance.jdbc.examples.common.db.model.Order;
 import ru.gold.ordance.jdbc.examples.common.db.model.OutboxEvent;
-import ru.gold.ordance.repository.examples.outbox.service.OutboxEventPayloadSerializer;
 
 import java.time.Duration;
 import java.time.OffsetDateTime;
@@ -13,9 +11,6 @@ import java.util.Map;
 import java.util.UUID;
 
 public class OutboxEventRepositoryImpl implements OutboxEventRepository {
-
-    private static final String AGGREGATE_TYPE = "Order";
-    private static final String EVENT_TYPE = "OrderCreated";
 
     private static final String INSERT_EVENT = """
             INSERT INTO outbox_events(event_id, aggregate_type, aggregate_id, event_type, payload)
@@ -86,16 +81,13 @@ public class OutboxEventRepositoryImpl implements OutboxEventRepository {
             """;
 
     private final JdbcClient jdbc;
-    private final OutboxEventPayloadSerializer payloadSerializer;
 
-    public OutboxEventRepositoryImpl(JdbcClient jdbc, OutboxEventPayloadSerializer payloadSerializer) {
+    public OutboxEventRepositoryImpl(JdbcClient jdbc) {
         this.jdbc = Asserts.nonNull(jdbc, "jdbc");
-        this.payloadSerializer = Asserts.nonNull(payloadSerializer, "payloadSerializer");
     }
 
     @Override
-    public void save(Order order) {
-        OutboxEvent event = toOutboxEvent(order);
+    public void save(OutboxEvent event) {
         Map<String, Object> params = Map.of(
                 "eventId", event.getEventId(),
                 "aggregateType", event.getAggregateType(),
@@ -144,16 +136,6 @@ public class OutboxEventRepositoryImpl implements OutboxEventRepository {
                 .param("nextAttemptDelayMillis", nextAttemptDelay.toMillis())
                 .param("maxAttempts", maxAttempts)
                 .update() == 1;
-    }
-
-    private OutboxEvent toOutboxEvent(Order order) {
-        OutboxEvent event = new OutboxEvent();
-        event.setEventId(UUID.randomUUID());
-        event.setAggregateType(AGGREGATE_TYPE);
-        event.setAggregateId(String.valueOf(order.getOrderId()));
-        event.setEventType(EVENT_TYPE);
-        event.setPayload(payloadSerializer.serialize(order));
-        return event;
     }
 
     private static OutboxEvent mapEvent(java.sql.ResultSet rs) throws java.sql.SQLException {

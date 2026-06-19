@@ -5,7 +5,6 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import ru.gold.ordance.repository.examples.outbox.repository.OrderRepository;
 import ru.gold.ordance.repository.examples.outbox.repository.OrderRepositoryImpl;
-import ru.gold.ordance.repository.examples.outbox.service.OutboxEventPayloadSerializer;
 import ru.gold.ordance.repository.examples.outbox.repository.OutboxEventRepository;
 import ru.gold.ordance.repository.examples.outbox.repository.OutboxEventRepositoryImpl;
 
@@ -18,10 +17,7 @@ public class DbConfig {
     }
 
     @Bean
-    OutboxEventRepository outboxEventRepository(
-            JdbcClient jdbcClient,
-            OutboxEventPayloadSerializer payloadSerializer
-    ) {
-        return new OutboxEventRepositoryImpl(jdbcClient, payloadSerializer);
+    OutboxEventRepository outboxEventRepository(JdbcClient jdbcClient) {
+        return new OutboxEventRepositoryImpl(jdbcClient);
     }
 }

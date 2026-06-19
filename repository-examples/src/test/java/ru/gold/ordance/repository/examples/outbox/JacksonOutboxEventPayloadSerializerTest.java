@@ -6,8 +6,8 @@ import com.fasterxml.jackson.databind.SerializationFeature;
 import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
-import ru.gold.ordance.jdbc.examples.common.db.model.Order;
 import ru.gold.ordance.repository.examples.outbox.service.JacksonOutboxEventPayloadSerializer;
+import ru.gold.ordance.repository.examples.outbox.service.OrderCreatedEventPayload;
 import ru.gold.ordance.repository.examples.outbox.service.OutboxEventPayloadSerializer;
 
 import java.math.BigDecimal;
@@ -33,23 +33,24 @@ class JacksonOutboxEventPayloadSerializerTest {
     void serialize_success() {
         OutboxEventPayloadSerializer serializer = new JacksonOutboxEventPayloadSerializer(objectMapper());
 
-        String payload = serializer.serialize(order());
+        String payload = serializer.serialize(orderCreatedEventPayload());
 
         assertThat(payload)
                 .isEqualTo("{\"orderId\":11,\"userId\":7,\"productName\":\"Keyboard\",\"amount\":99.90,\"createdAt\":\"2026-01-02T03:04:00+03:00\"}");
     }
 
     @Test
-    void serialize_success_usesOrderCreatedEventPayload() throws Exception {
+    void serialize_success_writesGivenPayload() throws Exception {
         ObjectMapper objectMapper = mock(ObjectMapper.class);
         when(objectMapper.writeValueAsString(any())).thenReturn("{}");
         OutboxEventPayloadSerializer serializer = new JacksonOutboxEventPayloadSerializer(objectMapper);
 
-        serializer.serialize(order());
+        OrderCreatedEventPayload payload = orderCreatedEventPayload();
+        serializer.serialize(payload);
 
         ArgumentCaptor<Object> payloadCaptor = ArgumentCaptor.forClass(Object.class);
         verify(objectMapper).writeValueAsString(payloadCaptor.capture());
-        assertThat(payloadCaptor.getValue().getClass().getSimpleName()).isEqualTo("OrderCreatedEvent");
+        assertThat(payloadCaptor.getValue()).isSameAs(payload);
     }
 
     @Test
@@ -60,7 +61,7 @@ class JacksonOutboxEventPayloadSerializerTest {
         when(objectMapper.writeValueAsString(any())).thenThrow(error);
         OutboxEventPayloadSerializer serializer = new JacksonOutboxEventPayloadSerializer(objectMapper);
 
-        assertThatThrownBy(() -> serializer.serialize(order()))
+        assertThatThrownBy(() -> serializer.serialize(orderCreatedEventPayload()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("Failed to serialize outbox event payload.")
                 .hasCause(error);
@@ -72,13 +73,13 @@ class JacksonOutboxEventPayloadSerializerTest {
                 .disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
     }
 
-    private static Order order() {
-        Order order = new Order();
-        order.setOrderId(11);
-        order.setUserId(7);
-        order.setProductName("Keyboard");
-        order.setAmount(new BigDecimal("99.90"));
-        order.setCreatedAt(OffsetDateTime.parse("2026-01-02T03:04:00+03:00"));
-        return order;
+    private static OrderCreatedEventPayload orderCreatedEventPayload() {
+        return new OrderCreatedEventPayload(
+                11,
+                7,
+                "Keyboard",
+                new BigDecimal("99.90"),
+                OffsetDateTime.parse("2026-01-02T03:04:00+03:00")
+        );
     }
 }

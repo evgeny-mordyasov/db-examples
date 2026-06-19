@@ -1,6 +1,5 @@
 package ru.gold.ordance.repository.examples.outbox.repository;
 
-import ru.gold.ordance.jdbc.examples.common.db.model.Order;
 import ru.gold.ordance.jdbc.examples.common.db.model.OutboxEvent;
 
 import java.time.Duration;
@@ -10,7 +9,7 @@ import java.util.UUID;
 
 public interface OutboxEventRepository {
 
-    void save(Order order);
+    void save(OutboxEvent event);
 
     List<OutboxEvent> claimBatch(int batchSize, Duration processingTimeout);
 

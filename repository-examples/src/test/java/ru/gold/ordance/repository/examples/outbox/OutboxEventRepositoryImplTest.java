@@ -7,14 +7,11 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.simple.JdbcClient;
-import ru.gold.ordance.jdbc.examples.common.db.model.Order;
 import ru.gold.ordance.jdbc.examples.common.db.model.OutboxEvent;
 import ru.gold.ordance.repository.examples.outbox.repository.OutboxEventRepository;
 import ru.gold.ordance.repository.examples.outbox.repository.OutboxEventRepositoryImpl;
-import ru.gold.ordance.repository.examples.outbox.service.OutboxEventPayloadSerializer;
 
 import java.sql.ResultSet;
-import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -33,63 +30,31 @@ import static org.mockito.Mockito.when;
 class OutboxEventRepositoryImplTest {
 
     @Mock private JdbcClient jdbc;
-    @Mock private OutboxEventPayloadSerializer payloadSerializer;
     @Mock private JdbcClient.StatementSpec statementSpec;
     @Mock private JdbcClient.MappedQuerySpec<OutboxEvent> querySpec;
 
     @Test
     void createInstance_jdbcIsNull() {
-        assertThatThrownBy(() -> new OutboxEventRepositoryImpl(null, payloadSerializer))
+        assertThatThrownBy(() -> new OutboxEventRepositoryImpl(null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("[jdbc] must not be null.");
     }
 
     @Test
-    void createInstance_payloadSerializerIsNull() {
-        assertThatThrownBy(() -> new OutboxEventRepositoryImpl(jdbc, null))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("[payloadSerializer] must not be null.");
-    }
-
-    @Test
-    void save_serializeFailed() {
-        Order order = order();
-        RuntimeException error = new RuntimeException("Simulated error");
-        when(payloadSerializer.serialize(any(Order.class))).thenThrow(error);
-
-        OutboxEventRepository repository = new OutboxEventRepositoryImpl(jdbc, payloadSerializer);
-
-        assertThatThrownBy(() -> repository.save(order))
-                .isSameAs(error);
-    }
-
-    @Test
     @SuppressWarnings("unchecked")
     void save_success() {
-        Order order = order();
+        OutboxEvent event = event();
         String payload = """
                 {"orderId":11,"userId":7,"productName":"Keyboard","amount":99.90,"createdAt":"2026-01-02T03:04:00+03:00"}
                 """;
-        when(payloadSerializer.serialize(any(Order.class))).thenReturn(payload);
+        event.setPayload(payload);
         when(jdbc.sql(anyString())).thenReturn(statementSpec);
         when(statementSpec.params(anyMap())).thenReturn(statementSpec);
         when(statementSpec.update()).thenReturn(1);
 
-        OutboxEventRepository repository = new OutboxEventRepositoryImpl(jdbc, payloadSerializer);
+        OutboxEventRepository repository = new OutboxEventRepositoryImpl(jdbc);
 
-        repository.save(order);
-
-        ArgumentCaptor<Order> payloadCaptor = ArgumentCaptor.forClass(Order.class);
-        verify(payloadSerializer).serialize(payloadCaptor.capture());
-        assertThat(payloadCaptor.getValue())
-                .extracting(
-                        Order::getOrderId,
-                        Order::getUserId,
-                        Order::getProductName,
-                        Order::getAmount,
-                        Order::getCreatedAt
-                )
-                .containsExactly(11, 7, "Keyboard", new BigDecimal("99.90"), OffsetDateTime.parse("2026-01-02T03:04:00+03:00"));
+        repository.save(event);
 
         ArgumentCaptor<String> sqlCaptor = ArgumentCaptor.forClass(String.class);
         ArgumentCaptor<Map<String, Object>> paramsCaptor = ArgumentCaptor.forClass(Map.class);
@@ -101,16 +66,16 @@ class OutboxEventRepositoryImplTest {
                 .contains("INSERT INTO outbox_events")
                 .contains("CAST(:payload AS jsonb)");
         assertThat(paramsCaptor.getValue())
+                .containsEntry("eventId", event.getEventId())
                 .containsEntry("aggregateType", "Order")
                 .containsEntry("aggregateId", "11")
                 .containsEntry("eventType", "OrderCreated")
                 .containsEntry("payload", payload);
-        assertThat(paramsCaptor.getValue().get("eventId")).isInstanceOf(UUID.class);
     }
 
     @Test
     void claimBatch_processingTimeoutIsZero() {
-        OutboxEventRepository repository = new OutboxEventRepositoryImpl(jdbc, payloadSerializer);
+        OutboxEventRepository repository = new OutboxEventRepositoryImpl(jdbc);
 
         assertThatThrownBy(() -> repository.claimBatch(5, Duration.ZERO))
                 .isInstanceOf(IllegalArgumentException.class)
@@ -146,7 +111,7 @@ class OutboxEventRepositoryImplTest {
             return List.of(rowMapperCaptor.getValue().mapRow(rs, 0));
         });
 
-        OutboxEventRepository repository = new OutboxEventRepositoryImpl(jdbc, payloadSerializer);
+        OutboxEventRepository repository = new OutboxEventRepositoryImpl(jdbc);
 
         List<OutboxEvent> events = repository.claimBatch(5, Duration.ofSeconds(30));
 
@@ -194,7 +159,7 @@ class OutboxEventRepositoryImplTest {
         when(statementSpec.param("claimUntil", claimUntil)).thenReturn(statementSpec);
         when(statementSpec.update()).thenReturn(1);
 
-        OutboxEventRepository repository = new OutboxEventRepositoryImpl(jdbc, payloadSerializer);
+        OutboxEventRepository repository = new OutboxEventRepositoryImpl(jdbc);
 
         boolean updated = repository.markProcessed(eventId, claimUntil);
 
@@ -221,7 +186,7 @@ class OutboxEventRepositoryImplTest {
         when(statementSpec.param("claimUntil", claimUntil)).thenReturn(statementSpec);
         when(statementSpec.update()).thenReturn(0);
 
-        OutboxEventRepository repository = new OutboxEventRepositoryImpl(jdbc, payloadSerializer);
+        OutboxEventRepository repository = new OutboxEventRepositoryImpl(jdbc);
 
         assertThat(repository.markProcessed(eventId, claimUntil)).isFalse();
     }
@@ -238,7 +203,7 @@ class OutboxEventRepositoryImplTest {
         when(statementSpec.param("maxAttempts", 3)).thenReturn(statementSpec);
         when(statementSpec.update()).thenReturn(1);
 
-        OutboxEventRepository repository = new OutboxEventRepositoryImpl(jdbc, payloadSerializer);
+        OutboxEventRepository repository = new OutboxEventRepositoryImpl(jdbc);
 
         boolean updated = repository.markFailed(eventId, claimUntil, "Timeout", Duration.ofMinutes(1), 3);
 
@@ -260,7 +225,7 @@ class OutboxEventRepositoryImplTest {
 
     @Test
     void markFailed_nextAttemptDelayIsZero() {
-        OutboxEventRepository repository = new OutboxEventRepositoryImpl(jdbc, payloadSerializer);
+        OutboxEventRepository repository = new OutboxEventRepositoryImpl(jdbc);
 
         assertThatThrownBy(() -> repository.markFailed(
                         UUID.fromString("7a2517f2-e651-4569-9f96-ac09f8b64f9a"),
@@ -273,13 +238,12 @@ class OutboxEventRepositoryImplTest {
                 .hasMessage("[nextAttemptDelay] must be a positive duration");
     }
 
-    private static Order order() {
-        Order order = new Order();
-        order.setOrderId(11);
-        order.setUserId(7);
-        order.setProductName("Keyboard");
-        order.setAmount(new BigDecimal("99.90"));
-        order.setCreatedAt(OffsetDateTime.parse("2026-01-02T03:04:00+03:00"));
-        return order;
+    private static OutboxEvent event() {
+        OutboxEvent event = new OutboxEvent();
+        event.setEventId(UUID.fromString("7a2517f2-e651-4569-9f96-ac09f8b64f9a"));
+        event.setAggregateType("Order");
+        event.setAggregateId("11");
+        event.setEventType("OrderCreated");
+        return event;
     }
 }

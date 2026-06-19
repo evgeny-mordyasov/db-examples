@@ -62,8 +62,9 @@ public class ServiceConfig {
     OrderService orderService(
             TransactionTemplate transactionTemplate,
             OrderRepository orderRepository,
-            OutboxEventRepository outboxEventRepository
+            OutboxEventRepository outboxEventRepository,
+            OutboxEventPayloadSerializer payloadSerializer
     ) {
-        return new OrderService(transactionTemplate, orderRepository, outboxEventRepository);
+        return new OrderService(transactionTemplate, orderRepository, outboxEventRepository, payloadSerializer);
     }
 }

@@ -15,6 +15,7 @@ import ru.gold.ordance.jdbc.examples.testcontainers.Containers;
 import ru.gold.ordance.repository.examples.outbox.repository.OrderRepository;
 import ru.gold.ordance.repository.examples.outbox.service.OrderService;
 import ru.gold.ordance.repository.examples.outbox.service.OutboxEventRelay;
+import ru.gold.ordance.repository.examples.outbox.service.OutboxEventPayloadSerializer;
 import ru.gold.ordance.repository.examples.outbox.properties.OutboxEventRelayProperties;
 import ru.gold.ordance.repository.examples.outbox.repository.OutboxEventRepository;
 import ru.gold.ordance.jdbc.examples.common.db.model.OutboxEvent;
@@ -40,6 +41,7 @@ class OrderServiceIT {
     @Autowired private OrderRepository orderRepository;
     @Autowired private OutboxEventRepository outboxEventRepository;
     @Autowired private OutboxEventRelay outboxEventRelay;
+    @Autowired private OutboxEventPayloadSerializer payloadSerializer;
     @Autowired private OrderService service;
     @Autowired private Flyway flyway;
 
@@ -322,7 +324,8 @@ class OrderServiceIT {
         OrderService failingService = new OrderService(
                 tx,
                 orderRepository,
-                failingAfterSaveOutboxRepository(error)
+                failingAfterSaveOutboxRepository(error),
+                payloadSerializer
         );
 
         assertThatThrownBy(() -> failingService.createOrder(newOrder()))
@@ -357,8 +360,8 @@ class OrderServiceIT {
     private OutboxEventRepository failingAfterSaveOutboxRepository(RuntimeException error) {
         return new OutboxEventRepository() {
             @Override
-            public void save(Order order) {
-                outboxEventRepository.save(order);
+            public void save(OutboxEvent event) {
+                outboxEventRepository.save(event);
                 throw error;
             }
 
