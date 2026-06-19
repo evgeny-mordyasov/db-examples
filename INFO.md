@@ -1,4 +1,4 @@
-# `Statement#setMaxRows`
+﻿# `Statement#setMaxRows`
 
 `setMaxRows(int max)` - метод JDBC-интерфейса `Statement`, который задает максимальное количество строк, доступных в любом `ResultSet`, полученном этим `Statement`.
 
