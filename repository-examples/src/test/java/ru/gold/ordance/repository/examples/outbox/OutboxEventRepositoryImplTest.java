@@ -109,6 +109,15 @@ class OutboxEventRepositoryImplTest {
     }
 
     @Test
+    void claimBatch_processingTimeoutIsZero() {
+        OutboxEventRepository repository = new OutboxEventRepositoryImpl(jdbc, payloadSerializer);
+
+        assertThatThrownBy(() -> repository.claimBatch(5, Duration.ZERO))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("[processingTimeout] must be a positive duration");
+    }
+
+    @Test
     @SuppressWarnings("unchecked")
     void claimBatch_success() throws Exception {
         UUID eventId = UUID.fromString("7a2517f2-e651-4569-9f96-ac09f8b64f9a");
@@ -247,6 +256,21 @@ class OutboxEventRepositoryImplTest {
                 .contains("WHERE event_id = :eventId")
                 .contains("AND status = 'PROCESSING'")
                 .contains("AND claim_until = :claimUntil");
+    }
+
+    @Test
+    void markFailed_nextAttemptDelayIsZero() {
+        OutboxEventRepository repository = new OutboxEventRepositoryImpl(jdbc, payloadSerializer);
+
+        assertThatThrownBy(() -> repository.markFailed(
+                        UUID.fromString("7a2517f2-e651-4569-9f96-ac09f8b64f9a"),
+                        OffsetDateTime.parse("2026-01-02T03:05:00+03:00"),
+                        "Timeout",
+                        Duration.ZERO,
+                        3
+                ))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("[nextAttemptDelay] must be a positive duration");
     }
 
     private static Order order() {

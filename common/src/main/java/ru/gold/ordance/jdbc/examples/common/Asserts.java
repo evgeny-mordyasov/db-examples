@@ -3,6 +3,7 @@ package ru.gold.ordance.jdbc.examples.common;
 import jakarta.annotation.Nonnull;
 import jakarta.annotation.Nullable;
 
+import java.time.Duration;
 import java.util.Map;
 
 @SuppressWarnings("UnusedReturnValue")
@@ -47,5 +48,14 @@ public final class Asserts {
             throw new IllegalArgumentException("[" + paramName + "] must be a positive number");
         }
         return val;
+    }
+
+    @Nonnull
+    public static Duration positive(@Nullable Duration duration, @Nonnull String paramName) {
+        nonNull(duration, paramName);
+        if (duration.isZero() || duration.isNegative()) {
+            throw new IllegalArgumentException("[" + paramName + "] must be a positive duration");
+        }
+        return duration;
     }
 }

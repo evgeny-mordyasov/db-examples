@@ -6,7 +6,6 @@ import ru.gold.ordance.jdbc.examples.common.db.model.OutboxEvent;
 import ru.gold.ordance.repository.examples.outbox.properties.OutboxEventRelayProperties;
 import ru.gold.ordance.repository.examples.outbox.repository.OutboxEventRepository;
 
-import java.time.OffsetDateTime;
 import java.util.List;
 
 public class OutboxEventRelay {
@@ -28,8 +27,8 @@ public class OutboxEventRelay {
         this.properties = Asserts.nonNull(properties, "properties");
         Asserts.positive(properties.getMaxErrorLength(), "maxErrorLength");
         Asserts.positive(properties.getMaxAttempts(), "maxAttempts");
-        Asserts.nonNull(properties.getNextAttemptDelay(), "nextAttemptDelay");
-        Asserts.nonNull(properties.getProcessingTimeout(), "processingTimeout");
+        Asserts.positive(properties.getNextAttemptDelay(), "nextAttemptDelay");
+        Asserts.positive(properties.getProcessingTimeout(), "processingTimeout");
     }
 
     public PollResult pollBatch(int batchSize) {
